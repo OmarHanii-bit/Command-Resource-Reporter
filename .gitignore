@@ -1,0 +1,16 @@
+# Build outputs
+/bin/
+/build/
+
+# Object files and executables produced anywhere in the tree
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.a
+*.res
+
+# Test logs and ad-hoc run output
+tests_out.txt
+*.log

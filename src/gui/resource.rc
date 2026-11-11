@@ -1,0 +1,16 @@
+/**
+ * @file resource.rc
+ * @brief Windows Resource Compiler definition script.
+ *
+ * This script embeds application resources into the compiled binary:
+ * 1. Application Manifest (app.manifest):
+ *    - Binds Microsoft.Windows.Common-Controls version 6.0.0.0 for modern visual styles.
+ *    - Configures DPI awareness so the user interface scales crisply on high-resolution displays.
+ */
+
+#include <windows.h>
+
+#define IDI_APP_ICON 101
+
+/* RT_MANIFEST (ID 24) pointing to the side-by-side XML manifest */
+1 24 "src/gui/app.manifest"

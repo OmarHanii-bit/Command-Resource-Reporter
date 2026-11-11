@@ -1,0 +1,255 @@
+<mxfile host="65bd71144e">
+    <diagram id="source-map" name="Source relationships">
+        <mxGraphModel dx="1520" dy="871" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1000" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title1" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#1F2937;" value="Command Resource Reporter - Source Relationships" vertex="1">
+                    <mxGeometry height="40" width="1400" x="40" y="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="headers-lane" parent="1" style="swimlane;html=1;startSize=32;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=15;" value="PUBLIC HEADERS - shared contracts and declarations" vertex="1">
+                    <mxGeometry height="165" width="1430" x="35" y="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="h-crr" parent="headers-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=13;" value="include/crr.h&lt;br&gt;common options, metrics, status" vertex="1">
+                    <mxGeometry height="75" width="210" x="18" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="h-exec" parent="headers-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=13;" value="include/crr_executor.h&lt;br&gt;execution API" vertex="1">
+                    <mxGeometry height="75" width="210" x="250" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="h-platform" parent="headers-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=13;" value="include/crr_platform.h&lt;br&gt;Windows / POSIX selection" vertex="1">
+                    <mxGeometry height="75" width="210" x="482" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="h-stats" parent="headers-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=13;" value="include/crr_stats.h&lt;br&gt;benchmark statistics API" vertex="1">
+                    <mxGeometry height="75" width="210" x="714" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="h-format" parent="headers-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=13;" value="include/crr_formatter.h&lt;br&gt;human / JSON / CSV API" vertex="1">
+                    <mxGeometry height="75" width="210" x="946" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="h-version" parent="headers-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=13;" value="include/crr_version.h&lt;br&gt;version metadata" vertex="1">
+                    <mxGeometry height="75" width="210" x="1178" y="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="core-lane" parent="1" style="swimlane;html=1;startSize=32;rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=15;" value="CORE IMPLEMENTATION - one platform executor is selected by the build" vertex="1">
+                    <mxGeometry height="175" width="1430" x="35" y="275" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-win" parent="core-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" value="src/core/crr_executor_win.c&lt;br&gt;Windows process + metrics" vertex="1">
+                    <mxGeometry height="75" width="265" x="35" y="57" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-posix" parent="core-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" value="src/core/crr_executor_posix.c&lt;br&gt;POSIX process + metrics" vertex="1">
+                    <mxGeometry height="75" width="265" x="325" y="57" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-stats" parent="core-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" value="src/core/crr_stats.c&lt;br&gt;benchmark calculations" vertex="1">
+                    <mxGeometry height="75" width="245" x="615" y="57" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-format" parent="core-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" value="src/core/crr_formatter.c&lt;br&gt;report serialization" vertex="1">
+                    <mxGeometry height="75" width="245" x="885" y="57" as="geometry"/>
+                </mxCell>
+                <mxCell id="static-lib" parent="core-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=13;" value="build/libcrr.a&lt;br&gt;compiled core library" vertex="1">
+                    <mxGeometry height="75" width="230" x="1160" y="57" as="geometry"/>
+                </mxCell>
+                <mxCell id="apps-lane" parent="1" style="swimlane;html=1;startSize=32;rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=15;" value="APPLICATION ENTRY POINTS" vertex="1">
+                    <mxGeometry height="150" width="1430" x="35" y="485" as="geometry"/>
+                </mxCell>
+                <mxCell id="cli-src" parent="apps-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=13;" value="src/cli/main.c&lt;br&gt;CLI parsing + run flow" vertex="1">
+                    <mxGeometry height="65" width="280" x="80" y="52" as="geometry"/>
+                </mxCell>
+                <mxCell id="gui-src" parent="apps-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=13;" value="src/gui/gui_main.c&lt;br&gt;Win32 GUI + worker thread" vertex="1">
+                    <mxGeometry height="65" width="300" x="455" y="52" as="geometry"/>
+                </mxCell>
+                <mxCell id="gui-res" parent="apps-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=13;" value="src/gui/resource.rc&lt;br&gt;embeds app.manifest" vertex="1">
+                    <mxGeometry height="65" width="260" x="850" y="52" as="geometry"/>
+                </mxCell>
+                <mxCell id="build-files" parent="apps-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=13;" value="Makefile + build.bat&lt;br&gt;select platform and build targets" vertex="1">
+                    <mxGeometry height="65" width="220" x="1175" y="52" as="geometry"/>
+                </mxCell>
+                <mxCell id="tests-lane" parent="1" style="swimlane;html=1;startSize=32;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=15;" value="TEST SOURCES - test runner and controlled workloads" vertex="1">
+                    <mxGeometry height="190" width="1430" x="35" y="670" as="geometry"/>
+                </mxCell>
+                <mxCell id="test-runner-src" parent="tests-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=13;" value="tests/test_runner.c&lt;br&gt;automated integration tests" vertex="1">
+                    <mxGeometry height="75" width="265" x="45" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="test-workloads" parent="tests-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=13;" value="tests/test_workloads/&lt;br&gt;cpu_burn.c • mem_burn.c&lt;br&gt;sleep_delay.c • fail_crash.c" vertex="1">
+                    <mxGeometry height="75" width="330" x="390" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="child-src" parent="tests-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=13;" value="child_spawner.c&lt;br&gt;runs CPU + memory workload siblings" vertex="1">
+                    <mxGeometry height="75" width="300" x="800" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="run-tests" parent="tests-lane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=13;" value="run_tests.bat&lt;br&gt;starts the test runner" vertex="1">
+                    <mxGeometry height="75" width="220" x="1175" y="62" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-crr-exec-h" edge="1" parent="1" source="h-crr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6c8ebf;" target="h-exec">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-crr-stats-h" edge="1" parent="1" source="h-crr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6c8ebf;" target="h-stats">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-crr-format-h" edge="1" parent="1" source="h-crr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6c8ebf;" target="h-format">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-h-exec-win" edge="1" parent="1" source="h-exec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="s-win">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-h-exec-posix" edge="1" parent="1" source="h-exec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="s-posix">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-platform-win" edge="1" parent="1" source="h-platform" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="s-win">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-platform-posix" edge="1" parent="1" source="h-platform" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="s-posix">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-stats-impl" edge="1" parent="1" source="h-stats" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="s-stats">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-format-impl" edge="1" parent="1" source="h-format" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="s-format">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-version-format" edge="1" parent="1" source="h-version" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="s-format">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-win-lib" edge="1" parent="1" source="s-win" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=11;" target="static-lib" value="selected on Windows">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-posix-lib" edge="1" parent="1" source="s-posix" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=11;" target="static-lib" value="selected on POSIX">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-stats-lib" edge="1" parent="1" source="s-stats" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="static-lib">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-format-lib" edge="1" parent="1" source="s-format" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="static-lib">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-cli-lib" edge="1" parent="1" source="cli-src" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="static-lib">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-gui-lib" edge="1" parent="1" source="gui-src" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="static-lib">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-tests-lib" edge="1" parent="1" source="test-runner-src" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="static-lib">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-build-lane" edge="1" parent="1" source="build-files" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#9673a6;" target="static-lib">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-resource-manifest" edge="1" parent="1" source="gui-res" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=11;" target="build-files" value="includes">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend1" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#4B5563;" value="Solid arrows = source/API or link relationship. Dashed arrow = build orchestration. Windows and POSIX executors are alternatives, not linked together in one build." vertex="1">
+                    <mxGeometry height="45" width="1400" x="45" y="880" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="build-map" name="Build and test flow">
+        <mxGraphModel dx="1449" dy="830" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="850" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title2" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#1F2937;" value="Command Resource Reporter - Build and Test Flow" vertex="1">
+                    <mxGeometry height="45" width="1400" x="45" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="build-group" parent="1" style="swimlane;html=1;startSize=32;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=15;" value="BUILD INPUTS" vertex="1">
+                    <mxGeometry height="660" width="300" x="40" y="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="make" parent="build-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=14;" value="Makefile&lt;br&gt;cross-platform targets" vertex="1">
+                    <mxGeometry height="70" width="225" x="35" y="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="bat" parent="build-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=14;" value="build.bat&lt;br&gt;Windows build script" vertex="1">
+                    <mxGeometry height="70" width="225" x="35" y="175" as="geometry"/>
+                </mxCell>
+                <mxCell id="runner-bat" parent="build-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=14;" value="run_tests.bat&lt;br&gt;runs test runner" vertex="1">
+                    <mxGeometry height="70" width="225" x="35" y="470" as="geometry"/>
+                </mxCell>
+                <mxCell id="core-group" parent="1" style="swimlane;html=1;startSize=32;rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=15;" value="COMPILE AND LINK" vertex="1">
+                    <mxGeometry height="660" width="440" x="390" y="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="core-objects" parent="core-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=14;" value="Core objects&lt;br&gt;executor + stats + formatter" vertex="1">
+                    <mxGeometry height="75" width="290" x="75" y="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="lib" parent="core-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=14;" value="build/libcrr.a&lt;br&gt;static library" vertex="1">
+                    <mxGeometry height="75" width="290" x="75" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="rc-object" parent="core-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" value="build/resource.o&lt;br&gt;resource.rc + app.manifest" vertex="1">
+                    <mxGeometry height="75" width="290" x="75" y="315" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-src-node" parent="core-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=14;" value="src/cli/main.c&lt;br&gt;src/gui/gui_main.c" vertex="1">
+                    <mxGeometry height="60" width="290" x="75" y="415" as="geometry"/>
+                </mxCell>
+                <mxCell id="test-src-node" parent="core-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=14;" value="tests/test_runner.c&lt;br&gt;+ five workload sources" vertex="1">
+                    <mxGeometry height="75" width="290" x="75" y="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-group" parent="1" style="swimlane;html=1;startSize=32;rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=15;" value="APPLICATIONS" vertex="1">
+                    <mxGeometry height="310" width="570" x="880" y="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="cli-bin" parent="app-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=14;" value="bin/crr.exe&lt;br&gt;CLI" vertex="1">
+                    <mxGeometry height="75" width="220" x="40" y="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="gui-bin" parent="app-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=14;" value="bin/crr_gui.exe&lt;br&gt;Win32 GUI" vertex="1">
+                    <mxGeometry height="75" width="220" x="310" y="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="apps-note" parent="app-group" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#374151;" value="Both executables link against build/libcrr.a.&lt;br&gt;The GUI also includes build/resource.o." vertex="1">
+                    <mxGeometry height="70" width="490" x="40" y="185" as="geometry"/>
+                </mxCell>
+                <mxCell id="tests-group" parent="1" style="swimlane;html=1;startSize=32;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=15;" value="TESTS AND GENERATED WORKLOAD BINARIES" vertex="1">
+                    <mxGeometry height="300" width="570" x="880" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="test-bin" parent="tests-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=14;" value="bin/test_runner.exe&lt;br&gt;automated suite" vertex="1">
+                    <mxGeometry height="75" width="220" x="40" y="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="workloads-bin" parent="tests-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=13;" value="bin/cpu_burn.exe&lt;br&gt;bin/mem_burn.exe&lt;br&gt;bin/sleep_delay.exe, etc." vertex="1">
+                    <mxGeometry height="90" width="220" x="310" y="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="child-note" parent="tests-group" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#374151;" value="child_spawner.exe runs cpu_burn.exe and mem_burn.exe from beside itself." vertex="1">
+                    <mxGeometry height="55" width="490" x="40" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-make-core" edge="1" parent="1" source="make" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="core-objects">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-bat-core" edge="1" parent="1" source="bat" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="core-objects">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-objects-lib" edge="1" parent="1" source="core-objects" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="lib">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-lib-cli" edge="1" parent="1" source="lib" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="cli-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-lib-gui" edge="1" parent="1" source="lib" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="gui-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-make-rc" edge="1" parent="1" source="make" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="rc-object">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-bat-rc" edge="1" parent="1" source="bat" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="rc-object">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-rc-gui" edge="1" parent="1" source="rc-object" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="gui-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-app-src-cli" edge="1" parent="1" source="app-src-node" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="cli-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-app-src-gui" edge="1" parent="1" source="app-src-node" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="gui-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-make-test-src" edge="1" parent="1" source="make" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="test-src-node">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-test-src-bin" edge="1" parent="1" source="test-src-node" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="test-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-test-src-workloads" edge="1" parent="1" source="test-src-node" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="workloads-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-lib-test-bin" edge="1" parent="1" source="lib" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="test-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-run-tests" edge="1" parent="1" source="runner-bat" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#b85450;" target="test-bin">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend2" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#4B5563;" value="Build scripts create generated files under build/ and bin/. The workload executables are separate programs used by the automated runner and GUI/CLI demonstrations." vertex="1">
+                    <mxGeometry height="40" width="1400" x="45" y="775" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

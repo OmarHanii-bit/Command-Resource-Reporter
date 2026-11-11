@@ -1,0 +1,64 @@
+<mxfile host="app.diagrams.net" modified="2026-11-08T22:15:00.000Z" agent="Copilot" version="24.7.17" type="device">
+  <diagram id="crr-architecture" name="CRR Architecture">
+    <mxGraphModel dx="1280" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="ui-layer" value="User Interaction Layer" style="swimlane;html=1;startSize=34;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1080" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="cli" value="CLI Tool (crr.exe)&lt;br&gt;src/cli/main.c" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=14;" vertex="1" parent="ui-layer">
+          <mxGeometry x="90" y="55" width="300" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="gui" value="Win32 GUI Control Panel (crr_gui.exe)&lt;br&gt;src/gui/gui_main.c" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=14;" vertex="1" parent="ui-layer">
+          <mxGeometry x="690" y="55" width="300" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="core-layer" value="Core Engine Library (libcrr.a)" style="swimlane;html=1;startSize=34;rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="40" y="250" width="1080" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="executor" value="Executor Engine&lt;br&gt;crr_executor.h" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=14;" vertex="1" parent="core-layer">
+          <mxGeometry x="40" y="60" width="290" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="statistics" value="Statistics Engine&lt;br&gt;crr_stats.c" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=14;" vertex="1" parent="core-layer">
+          <mxGeometry x="395" y="60" width="290" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="serialization" value="Serialization Engine&lt;br&gt;crr_formatter.c" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=14;" vertex="1" parent="core-layer">
+          <mxGeometry x="750" y="60" width="290" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="os-layer" value="Operating System Kernel Interfaces" style="swimlane;html=1;startSize=34;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="40" y="490" width="1080" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="windows" value="Windows NT Kernel&lt;br&gt;CreateProcessA (CREATE_SUSPENDED)&lt;br&gt;Job Objects • PSAPI • QPC Timer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=14;" vertex="1" parent="os-layer">
+          <mxGeometry x="90" y="55" width="400" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="posix" value="POSIX Kernel&lt;br&gt;fork() &amp; execvp() • wait4() &amp; getrusage()&lt;br&gt;clock_gettime(CLOCK_MONOTONIC)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=14;" vertex="1" parent="os-layer">
+          <mxGeometry x="590" y="55" width="400" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="cli-executor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="cli" target="executor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="cli-statistics" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="cli" target="statistics">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="cli-serialization" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="cli" target="serialization">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="gui-executor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="gui" target="executor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="gui-statistics" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="gui" target="statistics">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="gui-serialization" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="gui" target="serialization">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="executor-windows" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="executor" target="windows">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="executor-posix" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="executor" target="posix">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

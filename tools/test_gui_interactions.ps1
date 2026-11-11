@@ -31,7 +31,8 @@ public static class W32i {
 $WM_SETTEXT = 0x000C; $WM_GETTEXT = 0x000D; $WM_GETTEXTLENGTH = 0x000E
 $WM_CHAR = 0x0102; $WM_CLOSE = 0x0010; $BM_CLICK = 0x00F5
 $SWP_NOMOVE = 0x0002; $SWP_NOZORDER = 0x0004
-$CMD = 1001; $LOG = 1021; $BTN_CANCEL = 1009; $STATUS = 1012
+$CMD = 1001; $TIMEOUT = 1004; $REPEAT = 1005; $BTN_RUN = 1008
+$BTN_CANCEL = 1009; $STATUS = 1012; $LOG = 1021
 
 $script:failures = 0
 function Assert([bool]$cond, [string]$name) {
@@ -106,7 +107,68 @@ try {
     $cmdW2 = $cr.Right - $cr.Left
     Assert ((($cmdW2 - $cmdW0) -le 2) -and (($cmdW2 - $cmdW0) -ge -2)) ("Controls return to original layout (command " + $cmdW2 + ")")
 
-    # 3. Cancel aborts a long run and reports cancellation.
+    # 3. Non-numeric or out-of-range fields are rejected with a modal message.
+    $timeout = [W32i]::GetDlgItem($h, $TIMEOUT)
+    $repeat = [W32i]::GetDlgItem($h, $REPEAT)
+    $run = [W32i]::GetDlgItem($h, $BTN_RUN)
+
+    function Get-InvalidBox([string]$fieldValue, [IntPtr]$field) {
+        [void][W32i]::SendMessageStr($cmd, $WM_SETTEXT, [IntPtr]::Zero, ($workload + ' 400'))
+        [void][W32i]::SendMessageStr($field, $WM_SETTEXT, [IntPtr]::Zero, $fieldValue)
+        [void][W32i]::PostMessage($run, $BM_CLICK, [IntPtr]::Zero, [IntPtr]::Zero)
+        $box = [IntPtr]::Zero
+        $deadline = (Get-Date).AddSeconds(3)
+        while ((Get-Date) -lt $deadline -and $box -eq [IntPtr]::Zero) {
+            $box = [W32i]::FindWindow('#32770', 'Invalid Input'); Start-Sleep -Milliseconds 100
+        }
+        return $box
+    }
+
+    $box = Get-InvalidBox 'abc' $timeout
+    Assert ($box -ne [IntPtr]::Zero) "Timeout 'abc' is rejected with a message"
+    if ($box -ne [IntPtr]::Zero) {
+        $text = Get-Text ([W32i]::GetDlgItem($box, 0xFFFF))
+        Assert ($text -match 'Timeout') ("Message names the timeout field: " + $text)
+        [void][W32i]::PostMessage($box, $WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero)
+        Start-Sleep -Milliseconds 300
+    }
+
+    $box = Get-InvalidBox '-5' $timeout
+    Assert ($box -ne [IntPtr]::Zero) "Timeout '-5' is rejected with a message"
+    if ($box -ne [IntPtr]::Zero) {
+        [void][W32i]::PostMessage($box, $WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero)
+        Start-Sleep -Milliseconds 300
+    }
+    [void][W32i]::SendMessageStr($timeout, $WM_SETTEXT, [IntPtr]::Zero, '0')
+
+    $box = Get-InvalidBox 'abc' $repeat
+    Assert ($box -ne [IntPtr]::Zero) "Repeat count 'abc' is rejected with a message"
+    if ($box -ne [IntPtr]::Zero) {
+        $text = Get-Text ([W32i]::GetDlgItem($box, 0xFFFF))
+        Assert ($text -match 'Repeat') ("Message names the repeat field: " + $text)
+        [void][W32i]::PostMessage($box, $WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero)
+        Start-Sleep -Milliseconds 300
+    }
+
+    $box = Get-InvalidBox '0' $repeat
+    Assert ($box -ne [IntPtr]::Zero) "Repeat count '0' is rejected with a message"
+    if ($box -ne [IntPtr]::Zero) {
+        $text = Get-Text ([W32i]::GetDlgItem($box, 0xFFFF))
+        Assert ($text -match 'Repeat') ("Message names the repeat field for 0: " + $text)
+        [void][W32i]::PostMessage($box, $WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero)
+        Start-Sleep -Milliseconds 300
+    }
+
+    # 3b. Valid values still run: timeout 2 s, one repetition.
+    [void][W32i]::SendMessageStr($timeout, $WM_SETTEXT, [IntPtr]::Zero, '2')
+    [void][W32i]::SendMessageStr($repeat, $WM_SETTEXT, [IntPtr]::Zero, '1')
+    [void][W32i]::SendMessageStr($cmd, $WM_SETTEXT, [IntPtr]::Zero, ($workload + ' 400'))
+    [void][W32i]::PostMessage($cmd, $WM_CHAR, [IntPtr]13, [IntPtr]1)
+    $s = Wait-Status $status 'Completed successfully' 10
+    Assert ($s -match 'Completed successfully') ("Valid values still run: " + $s)
+    [void][W32i]::SendMessageStr($timeout, $WM_SETTEXT, [IntPtr]::Zero, '0')
+
+    # 4. Cancel aborts a long run and reports cancellation.
     [void][W32i]::SendMessageStr($cmd, $WM_SETTEXT, [IntPtr]::Zero, ($workload + ' 6000'))
     [void][W32i]::PostMessage($cmd, $WM_CHAR, [IntPtr]13, [IntPtr]1)
     $s = Wait-Status $status 'Executing' 5
@@ -115,7 +177,7 @@ try {
     $s = Wait-Status $status 'cancelled' 6
     Assert ($s -match 'cancelled') ("Cancel reports cancellation: " + $s)
 
-    # 4. Closing the window during a run must cancel the worker and exit quickly.
+    # 5. Closing the window during a run must cancel the worker and exit quickly.
     [void][W32i]::SendMessageStr($cmd, $WM_SETTEXT, [IntPtr]::Zero, ($workload + ' 6000'))
     [void][W32i]::PostMessage($cmd, $WM_CHAR, [IntPtr]13, [IntPtr]1)
     $s = Wait-Status $status 'Executing' 5

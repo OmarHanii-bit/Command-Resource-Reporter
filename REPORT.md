@@ -295,7 +295,7 @@ Each assertion is checked by the runner's own `CHECK` macro, which prints `[PASS
 | Build command | `build.bat` (8 build stages: core objects, `libcrr.a`, CLI, manifest/resources, GUI, workloads, test runner, completion banner) |
 | Shells used | Windows PowerShell 5.1.26100.9818 and Git Bash |
 | Test command | `bin\test_runner.exe` (or `run_tests.bat`) |
-| GUI checks | `tools\test_gui_interactions.ps1` (Enter, resize/reflow, Cancel, close-mid-run; 11 checks) |
+| GUI checks | `tools\test_gui_interactions.ps1` (Enter, resize/reflow, invalid-field messages, Cancel, close-mid-run; 19 checks) |
 | Result | **66 assertions / 15 suites, 66 passed, 0 failed, exit code 0** |
 
 ### 7.3 Summary of Test Results
@@ -321,7 +321,7 @@ The test suite executed **66 individual assertions** with a **100% pass rate (66
 | **TOTAL** | **66** | **All System Capabilities** | **Zero Failures Encountered** | **PASS** |
 
 ### 7.4 Defects Found and Resolved
-The suite was written before the fixes below were applied, and its first run failed exactly ten assertions (58 total, 48 passed). Each defect was reproduced at CLI/GUI level, fixed, and re-verified with the suite and a manual command. Rows 10–13 were found in later review passes and fixed with the same test-first discipline.
+The suite was written before the fixes below were applied, and its first run failed exactly ten assertions (58 total, 48 passed). Each defect was reproduced at CLI/GUI level, fixed, and re-verified with the suite and a manual command. Rows 10–14 were found in later review passes and fixed with the same test-first discipline.
 
 | # | Defect | Root cause | Fix | Verification |
 | :---: | :--- | :--- | :--- | :--- |
@@ -338,6 +338,7 @@ The suite was written before the fixes below were applied, and its first run fai
 | 11 | The GUI log pane could look empty after a shorter report replaced a longer one | An `EDIT` control keeps its previous scroll offset, so the new text was scrolled out of view | Added `set_log_text()`, which writes the text and then resets the selection/caret to line 1 | Figure 4 is captured immediately after the 3-run benchmark; the full launch-failure report is visible |
 | 12 | Child-process page faults and I/O were reported as root-process values only | The Job Object query read `TotalProcesses`/`TotalUserTime` but page faults and I/O came from `GetProcessMemoryInfo` on the root handle, so a build tree's disk traffic was under-counted | Page faults now come from `JOBOBJECT_BASIC_ACCOUNTING_INFORMATION.TotalPageFaultCount`, and I/O byte/operation counters from `JobObjectBasicAndIoAccountingInformation.IoInfo`, taking the maximum of job-wide and root readings | In the `child_spawner` test the aggregate rose from 1,215 to 11,170 page faults and from 2 to 4 write operations; two new assertions |
 | 13 | A GUI-launched console child could fail to start its console (`0x800700E8`) | The GUI has no console, so Windows asked the default terminal host to create one for a console-subsystem child; the host failed the allocation and showed `error 2147942632 when launching "...sleep_delay.exe 6000"` | When output is already redirected (`-c`/`-q`) and `GetConsoleWindow()` is `NULL`, children are spawned with `CREATE_NO_WINDOW`, so no terminal host is involved | Window enumeration during a captured GUI run shows the same console-window set before and during the run (same HWND); Enter/Cancel/close checks still pass |
+| 14 | GUI numeric fields silently coerced invalid input | The timeout and repeat boxes were read with `strtoul` without an end-pointer check, so `abc` became "no timeout", `-5` wrapped to a huge unsigned value, and `seconds * 1000` could overflow | Added `parse_uint_field()`: optional spaces and decimal digits only, empty timeout means 0, range-checked (timeout ≤ 4,294,967 s, repeat 1–10,000); invalid input raises an `Invalid Input` message naming the field and refocuses it | 8 new GUI checks: `abc`/`-5` on timeout and `abc`/`0` on repeat each open the message box; the timeout and repeat messages name the offending field; timeout 2 / repeat 1 still runs to completion |
 
 ### 7.5 Remaining Issues and Limitations
 These items are known, reproducible, and **not fixed**; they are recorded here so the evaluation reflects the actual state of the deliverable.
@@ -345,7 +346,7 @@ These items are known, reproducible, and **not fixed**; they are recorded here s
 1. **POSIX fallback is incomplete**: the timeout kills only the direct `/bin/sh` child (no process group), I/O block counts from `getrusage` are stored in the operation-count fields with byte counts left at 0, commit charge is reported as 0, and the progress callback always reports RSS 0. The missing-command classification above is also Windows-only; on POSIX a shell exit 127 is still reported as a normal child exit.
 2. **GUI is Windows-only, with DPI-unscaled fonts**: the window is resizable (minimum 860x620 client) and every control is rescaled proportionally from its captured design rectangle, but font sizes stay fixed, so very large windows look sparse rather than re-typeset. (Pressing Enter in the command field does trigger Run; the field is subclassed and routes the key to the Run button.)
 3. **ANSI APIs**: the GUI and executor use the `A` variants, so paths and commands outside the active code page may be misrendered.
-4. **GUI automation is partial**: `tools/capture_gui.ps1` covers launch → preset → run → close, and `tools/test_gui_interactions.ps1` asserts Enter-to-run, proportional resize/reflow, Cancel during a run, and closing the window mid-run (exit within 6 s, exit code 0). The file-export dialogs (`GetSaveFileNameA`/`SHBrowseForFolderA`) are modal and are not covered by an automated assertion.
+4. **GUI automation is partial**: `tools/capture_gui.ps1` covers launch → preset → run → close, and `tools/test_gui_interactions.ps1` asserts Enter-to-run, proportional resize/reflow, invalid-field messages, Cancel during a run, and closing the window mid-run (exit within 6 s, exit code 0) across 19 checks. The file-export dialogs (`GetSaveFileNameA`/`SHBrowseForFolderA`) are modal and are not covered by an automated assertion.
 
 ### 7.6 Observer Overhead Measurement (NFR-2)
 CRR measures its own supervision cost: `src/cli/main.c` snapshots its process CPU time (`GetProcessTimes`) immediately before and after `crr_execute`, and `-v` prints the delta, the wall-clock share, and the equivalent number of Windows timer ticks. The CPU counters advance in scheduler-tick units (15.625 ms on the test machine), so a sub-tick cost is reported as `< 15.6 ms` rather than as a false `0.000`.
@@ -376,7 +377,7 @@ To build and evaluate the Command Resource Reporter, ensure the following tools 
 
 ### 8.2 Building the Complete Project
 
-Open a terminal in the project directory (`C:\Command Resource Reporter`):
+Open a terminal in the project directory (the folder containing `build.bat`):
 
 #### Method A: 1-Click Automated Batch Script (Recommended for Windows)
 ```cmd
@@ -524,6 +525,7 @@ bin\crr_gui.exe
    - **Working Directory**: Optionally enter a path or click `Browse...` to pick a directory.
    - **Timeout (sec)**: Enter a numeric timeout threshold (e.g. `2` seconds), or `0` for none.
    - **Repeat count**: Set to `1` for single execution, or `3`+ for multi-run benchmark statistics.
+   - Both numeric fields are validated before launch: only digits (up to 4,294,967 seconds / 10,000 repetitions) are accepted. Letters, signs, or out-of-range values raise an **Invalid Input** message that names the field, and focus returns to it — nothing is silently coerced.
    - **Track Child Processes**: Checked by default to enable Job Object tree monitoring.
    - **Capture Output**: Checked by default to stream stdout/stderr into the output console.
 3. **Execution**:

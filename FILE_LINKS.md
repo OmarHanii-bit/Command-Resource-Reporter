@@ -70,8 +70,9 @@ the compiled Windows resource.
   window with `PrintWindow`, and closes it. It writes the PNGs in
   [`docs/screenshots/`](./docs/screenshots) that §6.1 of the report embeds.
 - [`tools/test_gui_interactions.ps1`](./tools/test_gui_interactions.ps1) drives
-  Enter-to-run, Cancel during a run, and closing the window mid-run, asserting
-  the status text and fast teardown. It exits 0 only when every check passes.
+  Enter-to-run, proportional resize/reflow, invalid-field rejection, Cancel
+  during a run, and closing the window mid-run, asserting the status text,
+  dialog messages, and fast teardown. It exits 0 only when every check passes.
 
 ## 5. Build and test flow
 

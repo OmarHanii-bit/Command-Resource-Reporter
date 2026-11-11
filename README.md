@@ -119,7 +119,7 @@ Command Resource Reporter/
 │       └── output_flood.c          # 200 KB stdout flood for pipe deadlock regression
 ├── tools/
 │   ├── capture_gui.ps1             # Reproducible GUI screenshot capture script
-│   └── test_gui_interactions.ps1   # Enter/resize/cancel/close-mid-run assertions against the real GUI
+│   └── test_gui_interactions.ps1   # Enter/resize/validation/cancel/close assertions against the real GUI
 ├── docs/
 │   └── screenshots/                # GUI screenshots referenced by REPORT.md
 ├── .gitignore                      # Excludes bin/, build/, object files and test logs
@@ -220,6 +220,7 @@ bin\crr_gui.exe
 - **Quick Preset Buttons**: One-click test buttons (`CPU Burn`, `Mem Burn`, `Sleep Delay`, `Child Tree`) that insert the workload's absolute path (resolved next to `crr_gui.exe`), so they work regardless of the launch directory.
 - **Working Directory Selector**: Includes text entry and a native folder picker dialog (`Browse...`).
 - **Execution Settings**: Numeric fields for Timeout and Benchmark Repeat count, plus checkboxes for Job Object tree tracking and output capture.
+- **Input Validation**: The timeout and repeat fields accept digits only (`0` = no timeout, repeat 1–10000). Letters, signs, or out-of-range values raise an `Invalid Input` message naming the field and return focus to it.
 - **Worker Thread Execution**: Commands run on an asynchronous worker thread so the GUI remains 100% responsive with live timer and memory updates.
 - **Real-Time Metrics Grid**: A 12-row dual-column ListView for a single run, switching to mean/min/max/std-dev rows for a benchmark.
 - **Log / Output Console**: Monospaced console view displaying child stdout, stderr, and the generated report with proper line breaks.
@@ -274,7 +275,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\capture_gui.ps1
 ```
 The resulting images are referenced by [REPORT.md](./REPORT.md) §6.1.
 
-Interactive behavior is asserted separately by `tools\test_gui_interactions.ps1` (11 checks), which presses Enter in the command field, resizes the window and verifies every control reflows and returns to its original rectangle, cancels a 6 s run, and closes the window mid-run:
+Interactive behavior is asserted separately by `tools\test_gui_interactions.ps1` (19 checks), which presses Enter in the command field, resizes the window and verifies every control reflows and returns to its original rectangle, rejects invalid timeout/repeat values with a field-specific message, cancels a 6 s run, and closes the window mid-run:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_gui_interactions.ps1
 ```

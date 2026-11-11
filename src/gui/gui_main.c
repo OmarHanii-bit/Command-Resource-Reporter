@@ -639,6 +639,34 @@ static void set_preset_command(HWND hwnd, const char *workload, const char *argu
     SetDlgItemTextA(hwnd, IDC_CMD_INPUT, workload);
 }
 
+/* Largest timeout the millisecond field can hold once multiplied by 1000. */
+#define GUI_MAX_TIMEOUT_SECONDS 4294967u
+#define GUI_MAX_REPEAT_COUNT    10000u
+
+/**
+ * @brief Parses a GUI numeric field: optional surrounding spaces and decimal
+ * digits only. Empty input yields 0. Returns false for signs, letters, or a
+ * value above max, so callers can report the field instead of silently
+ * coercing it (strtoul would turn "abc" into 0 and "-5" into a huge value).
+ */
+static bool parse_uint_field(const char *text, uint32_t max, uint32_t *out) {
+    if (!text || !out) return false;
+
+    while (*text == ' ' || *text == '\t') text++;
+    const char *digits = text;
+    uint64_t value = 0;
+    while (*text >= '0' && *text <= '9') {
+        value = value * 10 + (uint64_t)(*text - '0');
+        if (value > max) return false;
+        text++;
+    }
+    while (*text == ' ' || *text == '\t') text++;
+    if (*text != '\0') return false;
+
+    *out = (text == digits) ? 0u : (uint32_t)value;
+    return true;
+}
+
 /**
  * @brief Main Window Procedure handling all OS and user events.
  */
@@ -883,12 +911,26 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
                     char timeout_str[32];
                     GetDlgItemTextA(hwnd, IDC_TIMEOUT_INPUT, timeout_str, sizeof(timeout_str));
-                    uint32_t timeout_sec = (uint32_t)strtoul(timeout_str, NULL, 10);
+                    uint32_t timeout_sec = 0;
+                    if (!parse_uint_field(timeout_str, GUI_MAX_TIMEOUT_SECONDS, &timeout_sec)) {
+                        MessageBoxA(hwnd,
+                                    "Timeout must be a whole number of seconds between 0 and 4294967 "
+                                    "(0 means no timeout).",
+                                    "Invalid Input", MB_OK | MB_ICONWARNING);
+                        SetFocus(GetDlgItem(hwnd, IDC_TIMEOUT_INPUT));
+                        break;
+                    }
 
                     char repeat_str[32];
                     GetDlgItemTextA(hwnd, IDC_REPEAT_INPUT, repeat_str, sizeof(repeat_str));
-                    uint32_t repeat_cnt = (uint32_t)strtoul(repeat_str, NULL, 10);
-                    if (repeat_cnt < 1) repeat_cnt = 1;
+                    uint32_t repeat_cnt = 0;
+                    if (!parse_uint_field(repeat_str, GUI_MAX_REPEAT_COUNT, &repeat_cnt) || repeat_cnt < 1) {
+                        MessageBoxA(hwnd,
+                                    "Repeat count must be a whole number between 1 and 10000.",
+                                    "Invalid Input", MB_OK | MB_ICONWARNING);
+                        SetFocus(GetDlgItem(hwnd, IDC_REPEAT_INPUT));
+                        break;
+                    }
 
                     g_state.opts.command = g_state.command_buffer;
                     g_state.opts.working_dir = (strlen(g_state.workdir_buffer) > 0) ? g_state.workdir_buffer : NULL;

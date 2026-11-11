@@ -356,6 +356,14 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
     /* Step 4: Launch child process in SUSPENDED state */
     DWORD creation_flags = CREATE_SUSPENDED;
 
+    /* A windowless supervisor (the GUI) makes Windows allocate a console for a
+       console-subsystem child; the default terminal host can fail that
+       allocation with ERROR_NO_SYSTEM_RESOURCES (0x800700E8). When output is
+       already redirected, CREATE_NO_WINDOW keeps the child's console hidden. */
+    if ((opts->capture_output || opts->quiet) && GetConsoleWindow() == NULL) {
+        creation_flags |= CREATE_NO_WINDOW;
+    }
+
     /* Start wall-clock timer immediately before process launch */
     QueryPerformanceCounter(&start_time);
 

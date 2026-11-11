@@ -119,7 +119,7 @@ Command Resource Reporter/
 │       └── output_flood.c          # 200 KB stdout flood for pipe deadlock regression
 ├── tools/
 │   ├── capture_gui.ps1             # Reproducible GUI screenshot capture script
-│   └── test_gui_interactions.ps1   # Enter/Cancel/close-mid-run assertions against the real GUI
+│   └── test_gui_interactions.ps1   # Enter/resize/cancel/close-mid-run assertions against the real GUI
 ├── docs/
 │   └── screenshots/                # GUI screenshots referenced by REPORT.md
 ├── .gitignore                      # Excludes bin/, build/, object files and test logs
@@ -274,7 +274,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\capture_gui.ps1
 ```
 The resulting images are referenced by [REPORT.md](./REPORT.md) §6.1.
 
-Interactive behavior is asserted separately by `tools\test_gui_interactions.ps1`, which presses Enter in the command field, cancels a 6 s run, and closes the window mid-run:
+Interactive behavior is asserted separately by `tools\test_gui_interactions.ps1` (11 checks), which presses Enter in the command field, resizes the window and verifies every control reflows and returns to its original rectangle, cancels a 6 s run, and closes the window mid-run:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_gui_interactions.ps1
 ```
@@ -318,7 +318,7 @@ Measured with `bin\crr.exe -- bin\cpu_burn.exe 250` on Windows 11 (`10.0.26300.9
 ## 11. Known Limitations
 
 - **POSIX fallback is reduced**: timeouts terminate only the direct `/bin/sh` child (no process group), I/O byte counters are not populated (`getrusage` block counts land in the operation fields), commit charge is 0, progress callbacks always report RSS 0, and a shell exit 127 is not reclassified as a launch failure.
-- **GUI**: Windows-only and fixed-layout (no resize; fixed control coordinates). Pressing Enter in the command field does trigger Run — the field is subclassed and routes the key through the same enabled/disabled Run path as the button.
+- **GUI**: Windows-only, and the layout scales proportionally rather than reflowing: controls keep their design-time positions, stretched with the window, so a very wide window makes the two panes taller/wider but not better balanced. Minimum size is 860×620. Fonts are not re-scaled for high-DPI displays. Pressing Enter in the command field does trigger Run — the field is subclassed and routes the key through the same enabled/disabled Run path as the button.
 - **ANSI code page**: paths/commands using characters outside the active code page may be misrendered (the `A` Win32 APIs are used throughout).
 - **Observer overhead is quantified, not zero**: `-v` reports CRR's own CPU cost while supervising. It is a fixed per-run charge of about one scheduler tick, which is 0.04% of a 12-core host for a 3 s target but dominates sub-second runs (see REPORT.md §7.6). Windows quantizes process CPU counters to 15.625 ms, so sub-tick costs are reported as `< 15.6 ms`.
 - **Privilege separation**: processes spawned with elevated UAC privileges from an un-elevated prompt cannot be assigned to user-level Job Objects due to Windows kernel security restrictions.

@@ -236,7 +236,7 @@ Draining must happen whenever a pipe exists, even when the caller is not interes
 ## 6. GUI Design and Operation
 
 ### 6.1 Layout and Controls
-The Graphical User Interface was constructed in pure C using the Win32 API (Common Controls v6, DPI-aware manifest). It uses a single fixed-size window split into a control strip, a status line, and two side-by-side panes: a 12-row metrics ListView and a read-only monospaced log/report viewer.
+The Graphical User Interface was constructed in pure C using the Win32 API (Common Controls v6, DPI-aware manifest). It opens at 980×720 in a resizable (`WS_OVERLAPPEDWINDOW`) window split into a control strip, a status line, and two side-by-side panes: a 12-row metrics ListView and a read-only monospaced log/report viewer. Every control records its design-time rectangle at creation and is repositioned proportionally in `WM_SIZE`, so widening the window stretches both panes; `WM_GETMINMAXINFO` enforces a 860×620 minimum so no control is squeezed below its usable width.
 
 ![Figure 1 - CRR GUI idle control panel](docs/screenshots/01_gui_idle.png)
 
@@ -295,7 +295,7 @@ Each assertion is checked by the runner's own `CHECK` macro, which prints `[PASS
 | Build command | `build.bat` (8 build stages: core objects, `libcrr.a`, CLI, manifest/resources, GUI, workloads, test runner, completion banner) |
 | Shells used | Windows PowerShell 5.1.26100.9818 and Git Bash |
 | Test command | `bin\test_runner.exe` (or `run_tests.bat`) |
-| GUI checks | `tools\test_gui_interactions.ps1` (Enter, Cancel, close-mid-run; 8 checks) |
+| GUI checks | `tools\test_gui_interactions.ps1` (Enter, resize/reflow, Cancel, close-mid-run; 11 checks) |
 | Result | **66 assertions / 15 suites, 66 passed, 0 failed, exit code 0** |
 
 ### 7.3 Summary of Test Results
@@ -321,7 +321,7 @@ The test suite executed **66 individual assertions** with a **100% pass rate (66
 | **TOTAL** | **66** | **All System Capabilities** | **Zero Failures Encountered** | **PASS** |
 
 ### 7.4 Defects Found and Resolved
-The suite was written before the fixes below were applied, and its first run failed exactly ten assertions (58 total, 48 passed). Each defect was reproduced at CLI/GUI level, fixed, and re-verified with the suite and a manual command. Rows 10–12 were found in later review passes and fixed with the same test-first discipline.
+The suite was written before the fixes below were applied, and its first run failed exactly ten assertions (58 total, 48 passed). Each defect was reproduced at CLI/GUI level, fixed, and re-verified with the suite and a manual command. Rows 10–13 were found in later review passes and fixed with the same test-first discipline.
 
 | # | Defect | Root cause | Fix | Verification |
 | :---: | :--- | :--- | :--- | :--- |
@@ -337,14 +337,15 @@ The suite was written before the fixes below were applied, and its first run fai
 | 10 | A missing command was reported as `SUCCESS (Exit Code: 1)` | `CreateProcessA` failed with `ERROR_FILE_NOT_FOUND`, but the unconditional `cmd.exe /c` fallback launched successfully, so the supervisor reported its own success while cmd printed "is not recognized" and exited 1 | The fallback now runs only when cmd can interpret the line (shell metacharacters, a cmd built-in, or a resolvable program with `.exe/.com/.bat/.cmd`); otherwise the original launch error is returned. CLI exits 1, benchmark mode aborts after the first attempt, and the GUI shows a launch-failure status | 6 new assertions (missing bare name, missing absolute path, quoted token, real exit 42, built-in, metrics status); CLI `FAILED (Launch Error: command not found)`, exit 1; GUI screenshot shows `FAILED / ERROR` |
 | 11 | The GUI log pane could look empty after a shorter report replaced a longer one | An `EDIT` control keeps its previous scroll offset, so the new text was scrolled out of view | Added `set_log_text()`, which writes the text and then resets the selection/caret to line 1 | Figure 4 is captured immediately after the 3-run benchmark; the full launch-failure report is visible |
 | 12 | Child-process page faults and I/O were reported as root-process values only | The Job Object query read `TotalProcesses`/`TotalUserTime` but page faults and I/O came from `GetProcessMemoryInfo` on the root handle, so a build tree's disk traffic was under-counted | Page faults now come from `JOBOBJECT_BASIC_ACCOUNTING_INFORMATION.TotalPageFaultCount`, and I/O byte/operation counters from `JobObjectBasicAndIoAccountingInformation.IoInfo`, taking the maximum of job-wide and root readings | In the `child_spawner` test the aggregate rose from 1,215 to 11,170 page faults and from 2 to 4 write operations; two new assertions |
+| 13 | A GUI-launched console child could fail to start its console (`0x800700E8`) | The GUI has no console, so Windows asked the default terminal host to create one for a console-subsystem child; the host failed the allocation and showed `error 2147942632 when launching "...sleep_delay.exe 6000"` | When output is already redirected (`-c`/`-q`) and `GetConsoleWindow()` is `NULL`, children are spawned with `CREATE_NO_WINDOW`, so no terminal host is involved | Window enumeration during a captured GUI run shows the same console-window set before and during the run (same HWND); Enter/Cancel/close checks still pass |
 
 ### 7.5 Remaining Issues and Limitations
 These items are known, reproducible, and **not fixed**; they are recorded here so the evaluation reflects the actual state of the deliverable.
 
 1. **POSIX fallback is incomplete**: the timeout kills only the direct `/bin/sh` child (no process group), I/O block counts from `getrusage` are stored in the operation-count fields with byte counts left at 0, commit charge is reported as 0, and the progress callback always reports RSS 0. The missing-command classification above is also Windows-only; on POSIX a shell exit 127 is still reported as a normal child exit.
-2. **GUI is Windows-only and fixed-layout**: the window cannot be resized, and every control uses fixed pixel coordinates, so high-DPI displays and unusually narrow windows are not reflowed. (Pressing Enter in the command field does trigger Run; the field is subclassed and routes the key to the Run button.)
+2. **GUI is Windows-only, with DPI-unscaled fonts**: the window is resizable (minimum 860x620 client) and every control is rescaled proportionally from its captured design rectangle, but font sizes stay fixed, so very large windows look sparse rather than re-typeset. (Pressing Enter in the command field does trigger Run; the field is subclassed and routes the key to the Run button.)
 3. **ANSI APIs**: the GUI and executor use the `A` variants, so paths and commands outside the active code page may be misrendered.
-4. **GUI automation is partial**: `tools/capture_gui.ps1` covers launch → preset → run → close, and `tools/test_gui_interactions.ps1` asserts Enter-to-run, Cancel during a run, and closing the window mid-run (exit within 6 s, exit code 0). The file-export dialogs (`GetSaveFileNameA`/`SHBrowseForFolderA`) are modal and are not covered by an automated assertion.
+4. **GUI automation is partial**: `tools/capture_gui.ps1` covers launch → preset → run → close, and `tools/test_gui_interactions.ps1` asserts Enter-to-run, proportional resize/reflow, Cancel during a run, and closing the window mid-run (exit within 6 s, exit code 0). The file-export dialogs (`GetSaveFileNameA`/`SHBrowseForFolderA`) are modal and are not covered by an automated assertion.
 
 ### 7.6 Observer Overhead Measurement (NFR-2)
 CRR measures its own supervision cost: `src/cli/main.c` snapshots its process CPU time (`GetProcessTimes`) immediately before and after `crr_execute`, and `-v` prints the delta, the wall-clock share, and the equivalent number of Windows timer ticks. The CPU counters advance in scheduler-tick units (15.625 ms on the test machine), so a sub-tick cost is reported as `< 15.6 ms` rather than as a false `0.000`.

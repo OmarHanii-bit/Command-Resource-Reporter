@@ -220,6 +220,65 @@ static void set_log_text(HWND hLog, const char *text) {
 static WNDPROC g_cmdEditProc = NULL;
 
 /**
+ * @brief Creation-time geometry of every child control.
+ *
+ * The GUI is laid out at absolute pixel coordinates. Capturing those rectangles
+ * once lets WM_SIZE rescale them proportionally, so the window can be resized
+ * without rewriting every coordinate by hand.
+ */
+typedef struct {
+    HWND hwnd;
+    RECT design;
+} ctl_geom_t;
+
+static ctl_geom_t g_geom[64];
+static int g_geom_count = 0;
+static int g_design_w = 0;
+static int g_design_h = 0;
+
+static BOOL CALLBACK collect_geom_proc(HWND child, LPARAM parent) {
+    if (g_geom_count >= (int)(sizeof(g_geom) / sizeof(g_geom[0]))) return FALSE;
+    RECT r;
+    if (!GetWindowRect(child, &r)) return TRUE;
+    POINT tl = { r.left, r.top };
+    ScreenToClient((HWND)parent, &tl);
+    g_geom[g_geom_count].hwnd = child;
+    g_geom[g_geom_count].design.left = tl.x;
+    g_geom[g_geom_count].design.top = tl.y;
+    g_geom[g_geom_count].design.right = tl.x + (r.right - r.left);
+    g_geom[g_geom_count].design.bottom = tl.y + (r.bottom - r.top);
+    g_geom_count++;
+    return TRUE;
+}
+
+static void capture_design_layout(HWND hwnd) {
+    RECT client;
+    GetClientRect(hwnd, &client);
+    g_design_w = client.right;
+    g_design_h = client.bottom;
+    g_geom_count = 0;
+    EnumChildWindows(hwnd, collect_geom_proc, (LPARAM)hwnd);
+}
+
+static void layout_children(HWND hwnd) {
+    RECT client;
+    if (g_geom_count == 0 || g_design_w <= 0 || g_design_h <= 0) return;
+    if (!GetClientRect(hwnd, &client) || client.right <= 0 || client.bottom <= 0) return;
+    double sx = (double)client.right / (double)g_design_w;
+    double sy = (double)client.bottom / (double)g_design_h;
+    for (int i = 0; i < g_geom_count; ++i) {
+        const RECT *d = &g_geom[i].design;
+        int x = (int)(d->left * sx + 0.5);
+        int y = (int)(d->top * sy + 0.5);
+        int w = (int)((d->right - d->left) * sx + 0.5);
+        int h = (int)((d->bottom - d->top) * sy + 0.5);
+        if (w < 1) w = 1;
+        if (h < 1) h = 1;
+        MoveWindow(g_geom[i].hwnd, x, y, w, h, TRUE);
+    }
+}
+
+/**
  * @brief Subclass procedure for the command field: Enter triggers Run.
  *
  * A single-line EDIT control swallows VK_RETURN (it only beeps), so the parent
@@ -684,7 +743,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
             /* Apply clean fonts to all controls */
             EnumChildWindows(hwnd, SetChildFontProc, 0);
+            capture_design_layout(hwnd);
 
+            return 0;
+        }
+
+        case WM_SIZE:
+            if (wParam != SIZE_MINIMIZED) layout_children(hwnd);
+            return 0;
+
+        case WM_GETMINMAXINFO: {
+            MINMAXINFO *mmi = (MINMAXINFO*)lParam;
+            RECT min_rect = { 0, 0, 860, 620 };
+            AdjustWindowRectEx(&min_rect, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
+            mmi->ptMinTrackSize.x = min_rect.right - min_rect.left;
+            mmi->ptMinTrackSize.y = min_rect.bottom - min_rect.top;
             return 0;
         }
 
@@ -988,7 +1061,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         WS_EX_APPWINDOW,
         wc.lpszClassName,
         "Command Resource Reporter (CRR) - Control Panel & Benchmark Dashboard",
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+        WS_OVERLAPPEDWINDOW,
         posX, posY, winWidth, winHeight,
         NULL, NULL, hInstance, NULL
     );

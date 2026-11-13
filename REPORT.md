@@ -26,7 +26,7 @@ Per course specifications, the project team consists of 9 members with divided r
 | **Haneen Gamal** | `692400593` | **I/O & Data Formatters** | `src/core/crr_formatter.c`, `include/crr_formatter.h` | Non-blocking anonymous pipe redirection (`PeekNamedPipe`), deadlock-free I/O drainage, unit scale converters (B, KiB, MiB, GiB, ms, s), RFC 8259 JSON and RFC 4180 CSV report serializers. | 11.0% |
 | **MennaAllah Gamal Ali** | `692400739` | **GUI Front-End Engineer** | `src/gui/gui_main.c`, `src/gui/resource.rc`, `src/gui/app.manifest` | 100% C Win32 graphical user interface, non-blocking background worker thread (`CreateThread`), message queues (`WM_CRR_PROGRESS`, `WM_CRR_FINISHED`), Common Controls v6 integration, 12-row ListView, clipboard export. | 11.5% |
 | **Basmala Darwish** | `692400400` | **Test Harness & Workloads** | `tests/test_workloads/cpu_burn.c`, `fail_crash.c`, `run_tests.bat` | Design and implementation of synthetic test workloads (`cpu_burn`, `mem_burn`, `sleep_delay`, `child_spawner`, `fail_crash`), batch test scripts, exit code fault-injection testing. | 10.5% |
-| **Habiba Moahmed Omar** | `692400714` | **QA, Verification & Documentation** | `tests/test_runner.c`, `REPORT.md`, `README.md` | Automated test suite development (66 test assertions across 15 suites), regression testing, execution validation across edge cases, technical report authorship, user manual preparation. | 11.0% |
+| **Habiba Moahmed Omar** | `692400714` | **QA, Verification & Documentation** | `tests/test_runner.c`, `REPORT.md`, `README.md` | Automated test suite development (70 test assertions across 16 suites), regression testing, execution validation across edge cases, technical report authorship, user manual preparation. | 11.0% |
 
 ### 1.3 Team Subgroups and Workflow Coordination
 To ensure accountability, the 9 members operated in three collaborative functional squads:
@@ -295,11 +295,11 @@ Each assertion is checked by the runner's own `CHECK` macro, which prints `[PASS
 | Build command | `build.bat` (8 build stages: core objects, `libcrr.a`, CLI, manifest/resources, GUI, workloads, test runner, completion banner) |
 | Shells used | Windows PowerShell 5.1.26100.9818 and Git Bash |
 | Test command | `bin\test_runner.exe` (or `run_tests.bat`) |
-| GUI checks | `tools\test_gui_interactions.ps1` (Enter, resize/reflow, invalid-field messages, Cancel, close-mid-run; 19 checks) |
-| Result | **66 assertions / 15 suites, 66 passed, 0 failed, exit code 0** |
+| GUI checks | `tools\test_gui_interactions.ps1` (Enter, resize/reflow, invalid-field messages, export gating, cancelled-benchmark count, Cancel, close-mid-run; 22 checks) |
+| Result | **70 assertions / 16 suites, 70 passed, 0 failed, exit code 0** |
 
 ### 7.3 Summary of Test Results
-The test suite executed **66 individual assertions** with a **100% pass rate (66/66)**:
+The test suite executed **70 individual assertions** with a **100% pass rate (70/70)**:
 
 | Test Suite Category | Assertions | Focus Area | Observed Behavior | Status |
 | :--- | :---: | :--- | :--- | :---: |
@@ -308,7 +308,7 @@ The test suite executed **66 individual assertions** with a **100% pass rate (66
 | **Statistics Calculations** | 6 | Sample mean, variance, min, max, stddev | $\mu = 2.0$, $\sigma = 1.0$ verified against ground truth | **PASS** |
 | **JSON & CSV Serialization** | 6 | Output compliance & header validation | Parsable JSON keys, CSV header, per-run and aggregate rows | **PASS** |
 | **Serializer Escaping** | 8 | Quotes/backslashes in Windows paths | JSON parses after escape fix; CSV doubles embedded quotes | **PASS** |
-| **Error Handling & Validation** | 6 | NULL/empty arguments, short buffers, unwritable output, bad `-t`, bad `-f` | Every path returns an error instead of a silent success | **PASS** |
+| **Error Handling & Validation** | 8 | NULL/empty arguments, short buffers, unwritable output, malformed and non-finite `-t`, missing CLI binary | Every path returns an error instead of a silent success | **PASS** |
 | **Exit Code Propagation** | 2 | Normal exit vs. non-zero error propagation | Correctly reported exit codes 0 and 42 | **PASS** |
 | **Wall-Clock Timing** | 3 | Sleep delay accuracy & low CPU idle | Elapsed $\ge 0.30\,\text{s}$ with $< 0.15\,\text{s}$ CPU recorded | **PASS** |
 | **CPU Time & Utilization** | 2 | Computational load detection | Total CPU $\ge 0.10\,\text{s}$ and utilization $> 30\%$ | **PASS** |
@@ -316,12 +316,13 @@ The test suite executed **66 individual assertions** with a **100% pass rate (66
 | **Timeout Enforcement** | 3 | Process kill on timeout expiration | Terminated 3 s sleep at a 400 ms limit ($< 1.5\,\text{s}$) | **PASS** |
 | **Output Capture** | 2 | Pipe buffering & string verification | Stdout intercepted completely without loss | **PASS** |
 | **Pipe Drain Without Output Sink** | 3 | Capture enabled but no caller sink (the benchmark path) with 200 KB stdout | No deadlock or timeout; run completes in $< 3\,\text{s}$ | **PASS** |
+| **Detached Descendant Holding stdout** | 2 | Root exits immediately while a detached child keeps the inherited pipe open for ~8 s | Report returns in $< 2.5\,\text{s}$ instead of waiting for the orphan | **PASS** |
 | **Process Tree & Job Object Tracking** | 5 | Multi-process spawner & Job Object | $\ge 2$ processes tracked; child memory, page faults, and I/O write totals aggregated job-wide | **PASS** |
 | **Missing Command Classification** | 6 | Unresolvable names, quoted tokens, built-ins, non-zero exits | Missing targets report `CRR_ERR_SPAWN_FAILED`; real exit 42 and `echo` still succeed | **PASS** |
-| **TOTAL** | **66** | **All System Capabilities** | **Zero Failures Encountered** | **PASS** |
+| **TOTAL** | **70** | **All System Capabilities** | **Zero Failures Encountered** | **PASS** |
 
 ### 7.4 Defects Found and Resolved
-The suite was written before the fixes below were applied, and its first run failed exactly ten assertions (58 total, 48 passed). Each defect was reproduced at CLI/GUI level, fixed, and re-verified with the suite and a manual command. Rows 10–14 were found in later review passes and fixed with the same test-first discipline.
+The suite was written before the fixes below were applied, and its first run failed exactly ten assertions (58 total, 48 passed). Each defect was reproduced at CLI/GUI level, fixed, and re-verified with the suite and a manual command. Rows 10–18 were found in later review passes and fixed with the same test-first discipline.
 
 | # | Defect | Root cause | Fix | Verification |
 | :---: | :--- | :--- | :--- | :--- |
@@ -339,6 +340,10 @@ The suite was written before the fixes below were applied, and its first run fai
 | 12 | Child-process page faults and I/O were reported as root-process values only | The Job Object query read `TotalProcesses`/`TotalUserTime` but page faults and I/O came from `GetProcessMemoryInfo` on the root handle, so a build tree's disk traffic was under-counted | Page faults now come from `JOBOBJECT_BASIC_ACCOUNTING_INFORMATION.TotalPageFaultCount`, and I/O byte/operation counters from `JobObjectBasicAndIoAccountingInformation.IoInfo`, taking the maximum of job-wide and root readings | In the `child_spawner` test the aggregate rose from 1,215 to 11,170 page faults and from 2 to 4 write operations; two new assertions |
 | 13 | A GUI-launched console child could fail to start its console (`0x800700E8`) | The GUI has no console, so Windows asked the default terminal host to create one for a console-subsystem child; the host failed the allocation and showed `error 2147942632 when launching "...sleep_delay.exe 6000"` | When output is already redirected (`-c`/`-q`) and `GetConsoleWindow()` is `NULL`, children are spawned with `CREATE_NO_WINDOW`, so no terminal host is involved | Window enumeration during a captured GUI run shows the same console-window set before and during the run (same HWND); Enter/Cancel/close checks still pass |
 | 14 | GUI numeric fields silently coerced invalid input | The timeout and repeat boxes were read with `strtoul` without an end-pointer check, so `abc` became "no timeout", `-5` wrapped to a huge unsigned value, and `seconds * 1000` could overflow | Added `parse_uint_field()`: optional spaces and decimal digits only, empty timeout means 0, range-checked (timeout ≤ 4,294,967 s, repeat 1–10,000); invalid input raises an `Invalid Input` message naming the field and refocuses it | 8 new GUI checks: `abc`/`-5` on timeout and `abc`/`0` on repeat each open the message box; the timeout and repeat messages name the offending field; timeout 2 / repeat 1 still runs to completion |
+| 15 | A report could hang for as long as a detached child lived | The post-exit drain used a blocking `ReadFile` until EOF, and every process that inherited the pipe write end keeps that EOF from arriving; a command that starts a background child therefore froze the CLI/GUI after the root exited | `drain_pipe_eof()` now polls `PeekNamedPipe`, consumes the root's buffered output, and gives a surviving writer 250 ms before returning | New `orphan_spawner.exe` workload keeps the pipe open for ~8 s; the run returns in ~0.3 s instead of ~8 s (2 new assertions) |
+| 16 | The GUI could export a half-updated report, and a cancelled benchmark counted the interrupted run | Export/Copy stayed enabled during a run; the benchmark loop incremented its completed-run count before checking for cancellation | Run, Cancel, and the three export actions now share one enable/disable helper; the export handlers also refuse to act mid-run; the loop breaks before counting a `CRR_ERR_CANCELLED` run | 3 new GUI checks: export actions disabled while running, re-enabled afterwards, and "cancelled after 0 of 3 runs" |
+| 17 | Closing the window in the thread-start gap could free state under the worker; a failed clipboard copy crashed or leaked | `WM_DESTROY` waited only when `is_running` was already set (the worker sets it after `CreateThread` returns), and it released buffers even if the wait timed out; `GlobalLock` was unchecked and the `HGLOBAL` leaked when `SetClipboardData` failed | Teardown waits whenever a thread handle exists, cancels unconditionally, and frees state only after `WAIT_OBJECT_0`; clipboard copy checks the lock, frees on failure, and reports failure to the user | Close-mid-run check still passes; clipboard path inspected against the Win32 ownership rules |
+| 18 | Several rare executor/CLI failures were mishandled | A failed `WaitForSingleObject` fell into the blocking EOF drain while the child was still alive; the first pipe leaked if the second `CreatePipe` failed; an ignored `AssignProcessToJobObject` result left the code querying a job that tracked nothing; job peak commit was reported as peak RSS; `strtod("nan")` passed every range check and was cast to `uint32_t` | Terminate the process on `WAIT_FAILED` and skip the EOF drain; close all pipe handles on creation failure; drop the job handle when assignment fails; fold `PeakJobMemoryUsed` into `peak_pagefile_bytes`; reject non-finite timeouts after `strtod` | 2 new CLI assertions (`-t nan`, CLI binary present); the child-tree assertion now checks tree-wide peak commit; both suites green |
 
 ### 7.5 Remaining Issues and Limitations
 These items are known, reproducible, and **not fixed**; they are recorded here so the evaluation reflects the actual state of the deliverable.
@@ -346,7 +351,8 @@ These items are known, reproducible, and **not fixed**; they are recorded here s
 1. **POSIX fallback is incomplete**: the timeout kills only the direct `/bin/sh` child (no process group), I/O block counts from `getrusage` are stored in the operation-count fields with byte counts left at 0, commit charge is reported as 0, and the progress callback always reports RSS 0. The missing-command classification above is also Windows-only; on POSIX a shell exit 127 is still reported as a normal child exit.
 2. **GUI is Windows-only, with DPI-unscaled fonts**: the window is resizable (minimum 860x620 client) and every control is rescaled proportionally from its captured design rectangle, but font sizes stay fixed, so very large windows look sparse rather than re-typeset. (Pressing Enter in the command field does trigger Run; the field is subclassed and routes the key to the Run button.)
 3. **ANSI APIs**: the GUI and executor use the `A` variants, so paths and commands outside the active code page may be misrendered.
-4. **GUI automation is partial**: `tools/capture_gui.ps1` covers launch → preset → run → close, and `tools/test_gui_interactions.ps1` asserts Enter-to-run, proportional resize/reflow, invalid-field messages, Cancel during a run, and closing the window mid-run (exit within 6 s, exit code 0) across 19 checks. The file-export dialogs (`GetSaveFileNameA`/`SHBrowseForFolderA`) are modal and are not covered by an automated assertion.
+4. **GUI automation is partial**: `tools/capture_gui.ps1` covers launch → preset → run → close, and `tools/test_gui_interactions.ps1` asserts Enter-to-run, proportional resize/reflow, invalid-field messages, disabled export actions during a run, cancelled-benchmark accounting, Cancel during a run, and closing the window mid-run (exit within 6 s, exit code 0) across 22 checks. The file-export dialogs (`GetSaveFileNameA`/`SHBrowseForFolderA`) are modal and are not covered by an automated assertion.
+5. **Output from a detached descendant is not reported**: after the root exits, the drain stops 250 ms after its last byte, so a background process that inherited the pipe and writes later is neither waited for nor included in the captured output.
 
 ### 7.6 Observer Overhead Measurement (NFR-2)
 CRR measures its own supervision cost: `src/cli/main.c` snapshots its process CPU time (`GetProcessTimes`) immediately before and after `crr_execute`, and `-v` prints the delta, the wall-clock share, and the equivalent number of Windows timer ticks. The CPU counters advance in scheduler-tick units (15.625 ms on the test machine), so a sub-tick cost is reported as `< 15.6 ms` rather than as a false `0.000`.
@@ -414,10 +420,10 @@ To verify system correctness, execute the automated test harness:
 *(Or directly run `bin\test_runner.exe`)*
 
 **Expected Result**:
-The test suite will execute 66 automated assertions across 15 test suites (Options; Bytes & Time formatters; Statistics; JSON/CSV serialization; serializer escaping; error handling & validation; exit codes; wall-clock timing; CPU utilization; peak working set; timeout termination; output capture; pipe drain without a sink; missing command classification; Job Object process tree), finishing with exit code 0 and:
+The test suite will execute 70 automated assertions across 16 test suites (Options; Bytes & Time formatters; Statistics; JSON/CSV serialization; serializer escaping; error handling & validation; exit codes; wall-clock timing; CPU utilization; peak working set; timeout termination; output capture; pipe drain without a sink; detached descendant holding stdout; missing command classification; Job Object process tree), finishing with exit code 0 and:
 ```
 ====================================================================
- TEST SUMMARY: Total: 66 | Passed: 66 | Failed: 0
+ TEST SUMMARY: Total: 70 | Passed: 70 | Failed: 0
 ====================================================================
 ```
 
@@ -563,7 +569,7 @@ The project successfully satisfied all requirements of the Intermediate Systems 
 - Engineered a dual interface consisting of a high-performance CLI tool and a responsive native Win32 GUI control panel.
 - Solved complex process lifecycle and synchronization challenges, including race conditions during process creation, multi-process Job Object accounting, and pipe deadlock avoidance.
 - Implemented multi-run statistical benchmarking with complete JSON/CSV export support, including RFC-conformant escaping of Windows paths.
-- Verified all functionality via **66 automated assertions across 15 suites**, all passing, plus scripted GUI screenshot evidence.
+- Verified all functionality via **70 automated assertions across 16 suites**, all passing, plus scripted GUI screenshot evidence.
 - Documented the remaining gaps honestly (§7.5), including the POSIX fallback's reduced metric set and the lack of POSIX launch-failure classification.
 
 ### 9.2 Future Improvements
@@ -712,6 +718,6 @@ Benchmarking command across 3 runs: bin/cpu_burn.exe 150
 `bin\test_runner.exe` (last lines):
 ```
 ====================================================================
- TEST SUMMARY: Total: 66 | Passed: 66 | Failed: 0
+ TEST SUMMARY: Total: 70 | Passed: 70 | Failed: 0
 ====================================================================
 ```

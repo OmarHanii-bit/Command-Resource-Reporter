@@ -43,6 +43,7 @@ gcc %CFLAGS% tests/test_workloads/sleep_delay.c -o bin/sleep_delay.exe
 gcc %CFLAGS% tests/test_workloads/child_spawner.c -o bin/child_spawner.exe
 gcc %CFLAGS% tests/test_workloads/fail_crash.c -o bin/fail_crash.exe
 gcc %CFLAGS% tests/test_workloads/output_flood.c -o bin/output_flood.exe
+gcc %CFLAGS% tests/test_workloads/orphan_spawner.c -o bin/orphan_spawner.exe
 
 echo [7/8] Building Comprehensive Test Runner (bin/test_runner.exe)...
 gcc %CFLAGS% tests/test_runner.c build/libcrr.a -lpsapi -o bin/test_runner.exe

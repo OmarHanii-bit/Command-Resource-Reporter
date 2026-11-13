@@ -3,7 +3,7 @@
 [![Language](https://img.shields.io/badge/Language-C11-00599C.svg)](https://en.wikipedia.org/wiki/C11_(C_standard_revision))
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20POSIX-blue.svg)](https://en.wikipedia.org/wiki/Microsoft_Windows)
 [![Build](https://img.shields.io/badge/Build-GCC%20%7C%20Make-success.svg)](#building-the-project)
-[![Tests](https://img.shields.io/badge/Tests-66%2F66%20Passing-brightgreen.svg)](#testing-and-validation)
+[![Tests](https://img.shields.io/badge/Tests-70%2F70%20Passing-brightgreen.svg)](#testing-and-validation)
 
 > **Systems Programming Tool (Intermediate Level)**: A high-precision systems utility implemented strictly in the **C Programming Language** that executes any arbitrary command and measures its exact operating-system resource consumption, including high-resolution wall-clock elapsed time, user and kernel CPU execution time, CPU utilization percentage, peak resident set size (Peak Working Set / Max RSS), page fault counts, file/device I/O counters, and recursive child process tree accounting via Windows Job Objects.
 
@@ -89,6 +89,7 @@ Command Resource Reporter/
 ├── run_tests.bat                   # 1-Click test suite execution script
 ├── README.md                       # Complete evaluator documentation
 ├── REPORT.md                       # Comprehensive 10-section academic project report
+├── CHANGES.md                      # Consolidated change log for the final submission
 ├── include/
 │   ├── crr.h                       # Public API types and metric structures
 │   ├── crr_executor.h              # Execution engine interface & progress callbacks
@@ -109,17 +110,18 @@ Command Resource Reporter/
 │       ├── resource.rc             # Windows resource file
 │       └── app.manifest            # ComCtl32 v6 visual styles & DPI awareness
 ├── tests/
-│   ├── test_runner.c               # Comprehensive automated test suite (66 asserts)
+│   ├── test_runner.c               # Comprehensive automated test suite (70 asserts)
 │   └── test_workloads/
 │       ├── cpu_burn.c              # Controlled CPU load workload generator
 │       ├── mem_burn.c              # Controlled physical memory commitment workload
 │       ├── sleep_delay.c           # Controlled wall-clock delay workload
 │       ├── child_spawner.c         # Multi-process spawner for tree verification
 │       ├── fail_crash.c            # Fault injection & non-zero exit code workload
-│       └── output_flood.c          # 200 KB stdout flood for pipe deadlock regression
+│       ├── output_flood.c          # 200 KB stdout flood for pipe deadlock regression
+│       └── orphan_spawner.c        # Exits while a detached child keeps stdout open
 ├── tools/
 │   ├── capture_gui.ps1             # Reproducible GUI screenshot capture script
-│   └── test_gui_interactions.ps1   # Enter/resize/validation/cancel/close assertions against the real GUI
+│   └── test_gui_interactions.ps1   # Enter/resize/validation/export-gating/cancel/close assertions against the real GUI
 ├── docs/
 │   └── screenshots/                # GUI screenshots referenced by REPORT.md
 ├── .gitignore                      # Excludes bin/, build/, object files and test logs
@@ -233,7 +235,7 @@ Closing the window while a command is running cancels it, waits for the worker t
 
 ## 9. Testing and Validation
 
-CRR includes an automated test runner (`bin\test_runner.exe`) containing **66 test assertions** across 15 test suites. The runner links the same `libcrr.a` used by the CLI and drives real child processes, so timings, exit codes, Job Object counts, and pipe behavior are genuine measurements rather than mocks. The process exits 0 when every assertion passes and 1 otherwise.
+CRR includes an automated test runner (`bin\test_runner.exe`) containing **70 test assertions** across 16 test suites. The runner links the same `libcrr.a` used by the CLI and drives real child processes, so timings, exit codes, Job Object counts, and pipe behavior are genuine measurements rather than mocks. The process exits 0 when every assertion passes and 1 otherwise.
 
 To run the complete test suite:
 ```cmd
@@ -247,7 +249,7 @@ mingw32-make test
 Expected last lines:
 ```
 ====================================================================
- TEST SUMMARY: Total: 66 | Passed: 66 | Failed: 0
+ TEST SUMMARY: Total: 70 | Passed: 70 | Failed: 0
 ====================================================================
 ```
 
@@ -257,7 +259,7 @@ Expected last lines:
 3. **Statistical Math** (6): validates mean, min, max, and Bessel-corrected sample standard deviation against ground truth.
 4. **JSON & CSV Serialization** (6): verifies valid schema generation, headers, and aggregate/per-run rows.
 5. **Serializer Escaping** (8): verifies JSON escaping of Windows backslashes/quotes and RFC 4180 quote doubling in CSV.
-6. **Error Handling & Validation** (6): NULL/empty commands, undersized buffers, unwritable output paths, and rejected CLI arguments.
+6. **Error Handling & Validation** (8): NULL/empty commands, undersized buffers, unwritable output paths, malformed and non-finite timeout values, and a present CLI binary.
 7. **Exit Code Propagation** (2): verifies accurate reporting of both exit 0 and non-zero exit codes (e.g. exit 42).
 8. **Wall-Clock Accuracy** (3): verifies timer duration under thread sleep workloads with near-zero CPU.
 9. **CPU Time & Utilization** (2): verifies CPU burn load matches user CPU time and utilization calculations.
@@ -265,8 +267,9 @@ Expected last lines:
 11. **Timeout Enforcement** (3): verifies automatic termination of runaway processes upon reaching the timeout limit.
 12. **Output Capture** (2): verifies complete stdout interception without loss.
 13. **Pipe Drain Without Output Sink** (3): verifies that capture enabled with no output sink (the benchmark path) does not deadlock on a 200 KB stdout flood.
-14. **Missing Command Classification** (6): verifies that an unresolvable name is a launch failure rather than a successful `cmd.exe` run that exits 1, while a real command exiting 42 and a shell built-in still succeed.
-15. **Child Process Tree Tracking** (5): verifies multi-process Job Object accounting across parent and child tasks, including job-wide page-fault and I/O write totals.
+14. **Detached Descendant Holding stdout** (2): verifies that a command which exits while a background child still holds the pipe returns promptly instead of waiting for that orphan.
+15. **Missing Command Classification** (6): verifies that an unresolvable name is a launch failure rather than a successful `cmd.exe` run that exits 1, while a real command exiting 42 and a shell built-in still succeed.
+16. **Child Process Tree Tracking** (5): verifies multi-process Job Object accounting across parent and child tasks, including job-wide page-fault and I/O write totals.
 
 ### GUI Evidence
 `tools\capture_gui.ps1` drives the real GUI (preset → Run → wait for completion) and saves PNGs via `PrintWindow`:
@@ -275,7 +278,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\capture_gui.ps1
 ```
 The resulting images are referenced by [REPORT.md](./REPORT.md) §6.1.
 
-Interactive behavior is asserted separately by `tools\test_gui_interactions.ps1` (19 checks), which presses Enter in the command field, resizes the window and verifies every control reflows and returns to its original rectangle, rejects invalid timeout/repeat values with a field-specific message, cancels a 6 s run, and closes the window mid-run:
+Interactive behavior is asserted separately by `tools\test_gui_interactions.ps1` (22 checks), which presses Enter in the command field, resizes the window and verifies every control reflows and returns to its original rectangle, rejects invalid timeout/repeat values with a field-specific message, runs a 2-run benchmark, verifies export actions are disabled during a run and restored afterwards, checks that a cancelled benchmark counts only completed runs, cancels a 6 s run, and closes the window mid-run:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_gui_interactions.ps1
 ```
@@ -321,6 +324,7 @@ Measured with `bin\crr.exe -- bin\cpu_burn.exe 250` on Windows 11 (`10.0.26300.9
 - **POSIX fallback is reduced**: timeouts terminate only the direct `/bin/sh` child (no process group), I/O byte counters are not populated (`getrusage` block counts land in the operation fields), commit charge is 0, progress callbacks always report RSS 0, and a shell exit 127 is not reclassified as a launch failure.
 - **GUI**: Windows-only, and the layout scales proportionally rather than reflowing: controls keep their design-time positions, stretched with the window, so a very wide window makes the two panes taller/wider but not better balanced. Minimum size is 860×620. Fonts are not re-scaled for high-DPI displays. Pressing Enter in the command field does trigger Run — the field is subclassed and routes the key through the same enabled/disabled Run path as the button.
 - **ANSI code page**: paths/commands using characters outside the active code page may be misrendered (the `A` Win32 APIs are used throughout).
+- **Detached descendants are not waited for**: after the root command exits, CRR drains the pipe for 250 ms and returns. A background process that inherited stdout is not terminated and anything it writes afterwards is not part of the report.
 - **Observer overhead is quantified, not zero**: `-v` reports CRR's own CPU cost while supervising. It is a fixed per-run charge of about one scheduler tick, which is 0.04% of a 12-core host for a 3 s target but dominates sub-second runs (see REPORT.md §7.6). Windows quantizes process CPU counters to 15.625 ms, so sub-tick costs are reported as `< 15.6 ms`.
 - **Privilege separation**: processes spawned with elevated UAC privileges from an un-elevated prompt cannot be assigned to user-level Job Objects due to Windows kernel security restrictions.
 - **Short-lived micro-tasks**: for processes running under 1 millisecond, standard OS scheduling quantum (15.6 ms timer interrupt on Windows) reports quantized CPU time increments. High-precision wall-clock time remains accurate to $< 1\,\mu\text{s}$.

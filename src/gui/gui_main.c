@@ -98,6 +98,21 @@ static HFONT g_hFontUI = NULL;
 static HFONT g_hFontMono = NULL;
 
 /**
+ * @brief Enables the controls that are only valid while no run is active.
+ *
+ * Export and Copy act on the report from the previous run; letting them open a
+ * dialog mid-benchmark would read half-updated metrics and, because the file
+ * dialog runs its own message loop, could stall the worker's completion notice.
+ */
+static void set_run_controls_enabled(HWND hwnd, bool idle) {
+    EnableWindow(GetDlgItem(hwnd, IDC_BTN_RUN), idle);
+    EnableWindow(GetDlgItem(hwnd, IDC_BTN_CANCEL), !idle);
+    EnableWindow(GetDlgItem(hwnd, IDC_BTN_EXPORT_JSON), idle);
+    EnableWindow(GetDlgItem(hwnd, IDC_BTN_EXPORT_CSV), idle);
+    EnableWindow(GetDlgItem(hwnd, IDC_BTN_COPY_REPORT), idle);
+}
+
+/**
  * @brief Periodic progress callback invoked by the supervisor on the worker thread.
  *
  * Allocates a small telemetry parcel and dispatches it asynchronously via PostMessage.
@@ -134,7 +149,6 @@ static bool worker_cancel_cb(void *user_data) {
  */
 static DWORD WINAPI worker_thread_proc(LPVOID lpParam) {
     gui_state_t *state = (gui_state_t*)lpParam;
-    state->is_running = true;
 
     if (state->opts.repeat_count <= 1) {
         /* Single execution */
@@ -175,6 +189,8 @@ static DWORD WINAPI worker_thread_proc(LPVOID lpParam) {
                 worker_cancel_cb,
                 state
             );
+            /* A cancelled run never finished, so it must not enter the sample set. */
+            if (state->multi_runs[i].status_code == CRR_ERR_CANCELLED) break;
             state->multi_runs_count = i + 1;
             if (state->multi_runs[i].status_code == CRR_ERR_SPAWN_FAILED) {
                 break; /* Repeating a command that cannot be launched is pointless */
@@ -811,8 +827,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             SendMessageA(hProg, PBM_SETMARQUEE, FALSE, 0);
             SendMessageA(hProg, PBM_SETPOS, 100, 0);
 
-            EnableWindow(GetDlgItem(hwnd, IDC_BTN_RUN), TRUE);
-            EnableWindow(GetDlgItem(hwnd, IDC_BTN_CANCEL), FALSE);
+            set_run_controls_enabled(hwnd, true);
 
             if (g_state.hThread) {
                 CloseHandle(g_state.hThread);
@@ -940,9 +955,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_state.opts.capture_output = (IsDlgButtonChecked(hwnd, IDC_CHK_CAPTURE_OUTPUT) == BST_CHECKED);
 
                     g_state.cancel_requested = false;
+                    g_state.is_running = true;
 
-                    EnableWindow(GetDlgItem(hwnd, IDC_BTN_RUN), FALSE);
-                    EnableWindow(GetDlgItem(hwnd, IDC_BTN_CANCEL), TRUE);
+                    set_run_controls_enabled(hwnd, false);
 
                     HWND hProg = GetDlgItem(hwnd, IDC_PROGRESS);
                     SetWindowLongA(hProg, GWL_STYLE, GetWindowLongA(hProg, GWL_STYLE) | PBS_MARQUEE);
@@ -954,14 +969,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     g_state.hThread = CreateThread(NULL, 0, worker_thread_proc, &g_state, 0, NULL);
                     if (!g_state.hThread) {
                         MessageBoxA(hwnd, "Failed to create worker thread.", "System Error", MB_OK | MB_ICONERROR);
-                        EnableWindow(GetDlgItem(hwnd, IDC_BTN_RUN), TRUE);
-                        EnableWindow(GetDlgItem(hwnd, IDC_BTN_CANCEL), FALSE);
+                        g_state.is_running = false;
+                        set_run_controls_enabled(hwnd, true);
                         SendMessageA(hProg, PBM_SETMARQUEE, FALSE, 0);
                     }
                     break;
                 }
 
                 case IDC_BTN_EXPORT_JSON: {
+                    if (g_state.is_running) break;
                     char json_buf[16384] = {0};
                     if (g_state.last_human_report[0] == '\0') {
                         MessageBoxA(hwnd, "Run a command before exporting its report.", "Export Notice",
@@ -986,6 +1002,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 }
 
                 case IDC_BTN_EXPORT_CSV: {
+                    if (g_state.is_running) break;
                     char csv_buf[16384] = {0};
                     if (g_state.last_human_report[0] == '\0') {
                         MessageBoxA(hwnd, "Run a command before exporting its report.", "Export Notice",
@@ -1010,6 +1027,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 }
 
                 case IDC_BTN_COPY_REPORT: {
+                    if (g_state.is_running) break;
                     if (strlen(g_state.last_human_report) == 0) {
                         MessageBoxA(hwnd, "No report available to copy.", "Notice", MB_OK | MB_ICONINFORMATION);
                         break;
@@ -1020,15 +1038,25 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                         char *report_disp = crlf_dup(g_state.last_human_report);
                         const char *text = report_disp ? report_disp : g_state.last_human_report;
                         size_t len = strlen(text) + 1;
+                        bool copied = false;
                         HGLOBAL hGlob = GlobalAlloc(GMEM_MOVEABLE, len);
                         if (hGlob) {
-                            memcpy(GlobalLock(hGlob), text, len);
-                            GlobalUnlock(hGlob);
-                            SetClipboardData(CF_TEXT, hGlob);
+                            void *dst = GlobalLock(hGlob);
+                            if (dst) {
+                                memcpy(dst, text, len);
+                                GlobalUnlock(hGlob);
+                                copied = (SetClipboardData(CF_TEXT, hGlob) != NULL);
+                            }
+                            if (!copied) GlobalFree(hGlob);
                         }
                         free(report_disp);
                         CloseClipboard();
-                        MessageBoxA(hwnd, "Report copied to clipboard!", "Copied", MB_OK | MB_ICONINFORMATION);
+                        if (copied) {
+                            MessageBoxA(hwnd, "Report copied to clipboard!", "Copied", MB_OK | MB_ICONINFORMATION);
+                        } else {
+                            MessageBoxA(hwnd, "Could not place the report on the clipboard.", "Clipboard Error",
+                                        MB_OK | MB_ICONERROR);
+                        }
                     }
                     break;
                 }
@@ -1038,23 +1066,29 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
         /* Clean up resources on window closure */
         case WM_DESTROY: {
-            /* Stop the worker before the state it points at is torn down. The
-               supervisor notices cancellation within one 25 ms polling slice. */
-            if (g_state.is_running) {
-                g_state.cancel_requested = true;
-                if (g_state.hThread) {
-                    WaitForSingleObject(g_state.hThread, 5000);
-                }
-            }
+            /* Stop the worker before the state it points at is torn down. Waiting
+               on the thread handle (rather than on is_running) also covers the
+               window between CreateThread returning and the worker's first
+               instruction. If the worker will not stop, leave its buffers alone:
+               freeing them here would be a use-after-free while it still runs. */
+            bool worker_stopped = true;
             if (g_state.hThread) {
-                CloseHandle(g_state.hThread);
-                g_state.hThread = NULL;
+                g_state.cancel_requested = true;
+                if (WaitForSingleObject(g_state.hThread, 5000) == WAIT_OBJECT_0) {
+                    CloseHandle(g_state.hThread);
+                    g_state.hThread = NULL;
+                } else {
+                    worker_stopped = false;
+                }
             }
 
             if (g_hFontUI) DeleteObject(g_hFontUI);
             if (g_hFontMono) DeleteObject(g_hFontMono);
-            crr_free_output(&g_state.captured_output);
-            if (g_state.multi_runs) free(g_state.multi_runs);
+            if (worker_stopped) {
+                crr_free_output(&g_state.captured_output);
+                if (g_state.multi_runs) free(g_state.multi_runs);
+                g_state.multi_runs = NULL;
+            }
             PostQuitMessage(0);
             return 0;
         }

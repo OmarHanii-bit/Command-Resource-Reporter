@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <stdbool.h>
 #include <ctype.h>
 
@@ -111,7 +112,9 @@ static int parse_timeout(const char *str, uint32_t *out_ms) {
 
     char *endptr = NULL;
     double val = strtod(str, &endptr);
-    if (endptr == str || val < 0.0) return -1;
+    /* "nan" and "inf" parse cleanly but fail every range comparison below, so
+       they must be rejected explicitly before the conversion to uint32_t. */
+    if (endptr == str || !isfinite(val) || val < 0.0) return -1;
 
     while (endptr && isspace((unsigned char)*endptr)) endptr++;
 

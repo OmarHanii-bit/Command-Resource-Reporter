@@ -2,8 +2,9 @@
 
 This guide explains how the project files connect. The authoritative report is
 [`REPORT.md`](./REPORT.md) (its draw.io-diagram twin is
-[`REPORT_drawio.md`](./REPORT_drawio.md)). For a visual overview, open the
-editable, two-page diagram
+[`REPORT_drawio.md`](./REPORT_drawio.md)), and
+[`CHANGES.md`](./CHANGES.md) is the consolidated change log for the final
+submission. For a visual overview, open the editable, two-page diagram
 [`PROJECT_FILE_MAP.drawio`](./PROJECT_FILE_MAP.drawio) in diagrams.net / draw.io.
 
 ## 1. Shared headers and core implementation
@@ -60,6 +61,9 @@ the compiled Windows resource.
 - [`tests/test_workloads/output_flood.c`](./tests/test_workloads/output_flood.c)
   writes 200 KB to stdout so the runner can prove that benchmark mode drains
   pipes without hanging.
+- [`tests/test_workloads/orphan_spawner.c`](./tests/test_workloads/orphan_spawner.c)
+  exits immediately after starting a detached child that keeps the inherited
+  stdout pipe open, so the runner can prove the post-exit drain is bounded.
 
 ## 4. Report evidence and screenshot tooling
 
@@ -70,9 +74,13 @@ the compiled Windows resource.
   window with `PrintWindow`, and closes it. It writes the PNGs in
   [`docs/screenshots/`](./docs/screenshots) that §6.1 of the report embeds.
 - [`tools/test_gui_interactions.ps1`](./tools/test_gui_interactions.ps1) drives
-  Enter-to-run, proportional resize/reflow, invalid-field rejection, Cancel
-  during a run, and closing the window mid-run, asserting the status text,
-  dialog messages, and fast teardown. It exits 0 only when every check passes.
+  Enter-to-run, proportional resize/reflow, invalid-field rejection, export
+  gating during a run, cancelled-benchmark accounting, Cancel during a run, and
+  closing the window mid-run, asserting the status text, dialog messages, and
+  fast teardown. It exits 0 only when every check passes.
+- [`CHANGES.md`](./CHANGES.md) summarizes every post-implementation change, the
+  defect that motivated it, and the verification result; it is the companion to
+  REPORT.md §7.4.
 
 ## 5. Build and test flow
 

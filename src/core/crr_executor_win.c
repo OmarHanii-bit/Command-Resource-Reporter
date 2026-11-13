@@ -141,14 +141,31 @@ static void drain_pipe_avail(HANDLE hPipe, char **buf, size_t *len, size_t *cap)
 }
 
 /**
- * @brief Flushes remaining data from a pipe until end-of-file (handle closure).
+ * @brief Drains buffered output after the root process exits.
+ *
+ * A blocking ReadFile until EOF also waits for every process that inherited the
+ * pipe write end, so a detached descendant can hold the report open for its
+ * whole lifetime. Only the root's output belongs to this report, so poll the
+ * buffer and give a surviving writer a short grace period instead of waiting
+ * for it to close the pipe.
  */
-static void drain_pipe_eof(HANDLE hPipe, char **buf, size_t *len, size_t *cap) {
+static void drain_pipe_after_exit(HANDLE hPipe, char **buf, size_t *len, size_t *cap) {
     if (hPipe == NULL || hPipe == INVALID_HANDLE_VALUE) return;
     char temp[4096];
-    DWORD bytes_read = 0;
-    while (ReadFile(hPipe, temp, sizeof(temp), &bytes_read, NULL) && bytes_read > 0) {
-        append_to_buffer(buf, len, cap, temp, (size_t)bytes_read);
+    DWORD idle_start = GetTickCount();
+    for (;;) {
+        DWORD bytes_avail = 0;
+        if (!PeekNamedPipe(hPipe, NULL, 0, NULL, &bytes_avail, NULL)) break; /* writers gone */
+        if (bytes_avail > 0) {
+            DWORD to_read = (bytes_avail > sizeof(temp)) ? (DWORD)sizeof(temp) : bytes_avail;
+            DWORD bytes_read = 0;
+            if (!ReadFile(hPipe, temp, to_read, &bytes_read, NULL) || bytes_read == 0) break;
+            append_to_buffer(buf, len, cap, temp, (size_t)bytes_read);
+            idle_start = GetTickCount();
+            continue;
+        }
+        if (GetTickCount() - idle_start >= 250) break;
+        Sleep(5);
     }
 }
 
@@ -286,6 +303,7 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
     /* Step 1: Initialize high-resolution performance counter */
     LARGE_INTEGER qpc_freq, start_time, end_time;
     if (!QueryPerformanceFrequency(&qpc_freq)) {
+        metrics->status_code = CRR_ERR_METRICS_FAILED;
         return CRR_ERR_METRICS_FAILED;
     }
 
@@ -313,7 +331,13 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
     if (opts->capture_output) {
         if (!CreatePipe(&hStdOutRead, &hStdOutWrite, &sa, 0) ||
             !CreatePipe(&hStdErrRead, &hStdErrWrite, &sa, 0)) {
+            /* The first CreatePipe may have succeeded before the second failed. */
+            if (hStdOutRead) CloseHandle(hStdOutRead);
+            if (hStdOutWrite) CloseHandle(hStdOutWrite);
+            if (hStdErrRead) CloseHandle(hStdErrRead);
+            if (hStdErrWrite) CloseHandle(hStdErrWrite);
             if (hJob) CloseHandle(hJob);
+            metrics->status_code = CRR_ERR_IO;
             return CRR_ERR_IO;
         }
         /* Ensure the parent's read ends are NOT inherited by child */
@@ -349,6 +373,7 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
         if (hStdErrRead) CloseHandle(hStdErrRead);
         if (hStdErrWrite) CloseHandle(hStdErrWrite);
         if (hNullFile && hNullFile != INVALID_HANDLE_VALUE) CloseHandle(hNullFile);
+        metrics->status_code = CRR_ERR_MEMORY;
         return CRR_ERR_MEMORY;
     }
     memcpy(cmd_buf, opts->command, cmd_len + 1);
@@ -429,8 +454,11 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
     }
 
     /* Step 5: Assign process to Job Object BEFORE resuming to capture all descendants */
-    if (hJob) {
-        AssignProcessToJobObject(hJob, pi.hProcess);
+    if (hJob && !AssignProcessToJobObject(hJob, pi.hProcess)) {
+        /* The child may already belong to an incompatible job. Losing tree-wide
+           accounting is preferable to acting on a job that tracks nothing. */
+        CloseHandle(hJob);
+        hJob = NULL;
     }
 
     /* Step 6: Resume main thread to begin active execution */
@@ -439,6 +467,7 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
 
     bool cancelled = false;
     bool timed_out = false;
+    bool wait_failed = false;
 
     /* Step 7: Polling wait loop (25 ms slices) */
     while (true) {
@@ -480,8 +509,17 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
             break; /* Process terminated */
         } else if (wait_res == WAIT_FAILED) {
             metrics->status_code = CRR_ERR_WAIT_FAILED;
+            wait_failed = true;
             break;
         }
+    }
+
+    /* A failed wait says nothing about the child, which may still be running.
+       Terminate it so the pipe handles below cannot keep an EOF drain alive. */
+    if (wait_failed) {
+        if (hJob) TerminateJobObject(hJob, 1);
+        TerminateProcess(pi.hProcess, 1);
+        WaitForSingleObject(pi.hProcess, 500);
     }
 
     /* Step 8: Handle timeout or cancellation cleanup */
@@ -500,10 +538,11 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
     QueryPerformanceCounter(&end_time);
     metrics->wall_time_sec = (double)(end_time.QuadPart - start_time.QuadPart) / (double)qpc_freq.QuadPart;
 
-    /* Step 10: Drain any remaining pipe output until EOF */
-    if (opts->capture_output && capture) {
-        drain_pipe_eof(hStdOutRead, &capture->stdout_buf, &capture->stdout_len, &stdout_cap);
-        drain_pipe_eof(hStdErrRead, &capture->stderr_buf, &capture->stderr_len, &stderr_cap);
+    /* Step 10: Drain the output the root left buffered (bounded, so a detached
+       child that keeps the write end open cannot stall the report). */
+    if (opts->capture_output && capture && !wait_failed) {
+        drain_pipe_after_exit(hStdOutRead, &capture->stdout_buf, &capture->stdout_len, &stdout_cap);
+        drain_pipe_after_exit(hStdErrRead, &capture->stderr_buf, &capture->stderr_len, &stderr_cap);
     }
     if (hStdOutRead) CloseHandle(hStdOutRead);
     if (hStdErrRead) CloseHandle(hStdErrRead);
@@ -590,8 +629,10 @@ int crr_execute_with_callbacks(const crr_options_t *opts,
         JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobExt;
         memset(&jobExt, 0, sizeof(jobExt));
         if (QueryInformationJobObject(hJob, JobObjectExtendedLimitInformation, &jobExt, sizeof(jobExt), NULL)) {
-            if ((uint64_t)jobExt.PeakJobMemoryUsed > metrics->max_rss_bytes) {
-                metrics->max_rss_bytes = (uint64_t)jobExt.PeakJobMemoryUsed;
+            /* PeakJobMemoryUsed is peak committed memory for the whole job,
+               which maps to PeakPagefileUsage, not to working-set RSS. */
+            if ((uint64_t)jobExt.PeakJobMemoryUsed > metrics->peak_pagefile_bytes) {
+                metrics->peak_pagefile_bytes = (uint64_t)jobExt.PeakJobMemoryUsed;
             }
         }
         CloseHandle(hJob);

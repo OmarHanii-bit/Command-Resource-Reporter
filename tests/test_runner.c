@@ -2,7 +2,7 @@
  * @file test_runner.c
  * @brief Comprehensive automated unit and integration test runner for CRR.
  *
- * This test suite executes 41 distinct assertions across 11 test suites:
+ * This test suite executes 70 assertions across 16 test suites:
  * 1. Unit Tests:
  *    - Options initialization defaults.
  *    - Byte formatting thresholds (B, KiB, MiB, GiB).
@@ -17,6 +17,7 @@
  *    - Peak Resident Set Size (Peak Working Set) and page fault detection (mem_burn).
  *    - Timeout enforcement and process tree termination (sleep_delay with threshold).
  *    - Standard output interception and pipe drainage.
+ *    - Bounded post-exit drainage when a detached descendant holds the pipe.
  *    - Windows Job Object multi-process child tree tracking.
  */
 
@@ -31,6 +32,10 @@
 #include <math.h>
 #include <assert.h>
 #include <ctype.h>
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 static int total_tests = 0;
 static int passed_tests = 0;
@@ -287,7 +292,7 @@ static void test_child_process_tree_tracking(void) {
 
     TEST_ASSERT(m.child_processes_tracked == true, "Job Object child tracking active");
     TEST_ASSERT(m.process_count >= 2, "Multiple processes tracked in process tree");
-    TEST_ASSERT(m.max_rss_bytes >= (15ULL * 1024ULL * 1024ULL), "Child memory accounted in aggregate peak");
+    TEST_ASSERT(m.peak_pagefile_bytes >= (15ULL * 1024ULL * 1024ULL), "Child memory accounted in tree-wide peak commit");
     /* The 25 MiB child faults thousands of pages; a root-only reading stays near 1.2k. */
     TEST_ASSERT(m.page_faults >= 5000, "Page faults aggregated across the process tree");
     /* Each workload writes one status line; the root alone accounts for two operations. */
@@ -367,6 +372,7 @@ static void test_error_handling(void) {
     printf("[TEST SUITE] Error Handling & Validation\n");
 
     crr_metrics_t m;
+    memset(&m, 0, sizeof(m));
     TEST_ASSERT(crr_execute(NULL, &m, NULL) == CRR_ERR_INVALID_ARGS,
                 "NULL options are rejected");
     TEST_ASSERT(crr_execute(&(crr_options_t){ .command = "" }, &m, NULL) == CRR_ERR_INVALID_ARGS,
@@ -383,8 +389,15 @@ static void test_error_handling(void) {
                 "Unwritable output path returns an error");
 
 #if defined(_WIN32)
+    FILE *cli_bin = fopen("bin\\crr.exe", "rb");
+    TEST_ASSERT(cli_bin != NULL, "CLI executable is present for the CLI checks");
+    if (cli_bin) fclose(cli_bin);
+
     int bad_timeout = system("bin\\crr.exe -t nonsense -- bin\\cpu_burn.exe 10 > NUL 2>&1");
     TEST_ASSERT(bad_timeout != 0, "CLI rejects a malformed timeout value");
+
+    int nan_timeout = system("bin\\crr.exe -t nan -- bin\\cpu_burn.exe 10 > NUL 2>&1");
+    TEST_ASSERT(nan_timeout != 0, "CLI rejects a non-finite timeout value");
 
     int bad_output = system("bin\\crr.exe -o \"Z:\\crr_no_such_dir\\report.txt\" -- bin\\cpu_burn.exe 10 > NUL 2>&1");
     TEST_ASSERT(bad_output != 0, "CLI reports a nonzero status when the report cannot be written");
@@ -412,6 +425,33 @@ static void test_capture_without_sink(void) {
     TEST_ASSERT(res == CRR_SUCCESS && m.exit_code == 0, "Flooding child completes successfully");
     TEST_ASSERT(m.wall_time_sec < 3.0, "Flooding child completes well before the 5 s timeout");
 }
+
+#if defined(_WIN32)
+/**
+ * @brief A detached descendant that outlives the root must not stall the report.
+ *
+ * The descendant inherits the pipe write end and keeps it open for ~8 s. Draining
+ * with a blocking ReadFile until EOF made the report wait for that orphan; the
+ * drain must instead stop shortly after the root's own output is consumed.
+ */
+static void test_detached_descendant_pipe(void) {
+    printf("[TEST SUITE] Detached Descendant Holding stdout\n");
+    crr_options_t opts;
+    crr_options_init(&opts);
+    opts.capture_output = true;
+    opts.track_children = false; /* the descendant is deliberately outside the job */
+    opts.timeout_ms = 3000;
+    opts.command = "bin\\orphan_spawner.exe";
+
+    crr_metrics_t m;
+    ULONGLONG started = GetTickCount64();
+    int res = crr_execute(&opts, &m, NULL);
+    ULONGLONG elapsed_ms = GetTickCount64() - started;
+
+    TEST_ASSERT(res == CRR_SUCCESS && m.exit_code == 0, "Root command with a detached child succeeds");
+    TEST_ASSERT(elapsed_ms < 2500, "Report does not wait for the detached descendant's pipe");
+}
+#endif
 
 /**
  * @brief A command that cannot be resolved must surface as a spawn failure.
@@ -491,6 +531,9 @@ int main(void) {
     test_timeout_enforcement();
     test_output_capture();
     test_capture_without_sink();
+#if defined(_WIN32)
+    test_detached_descendant_pipe();
+#endif
     test_missing_command_classification();
     test_child_process_tree_tracking();
 

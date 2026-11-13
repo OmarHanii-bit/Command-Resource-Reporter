@@ -37,7 +37,8 @@ WORKLOADS := bin/cpu_burn$(EXE_EXT) \
              bin/sleep_delay$(EXE_EXT) \
              bin/child_spawner$(EXE_EXT) \
              bin/fail_crash$(EXE_EXT) \
-             bin/output_flood$(EXE_EXT)
+             bin/output_flood$(EXE_EXT) \
+             bin/orphan_spawner$(EXE_EXT)
 
 .PHONY: all clean test dirs cli gui workloads
 
@@ -87,6 +88,9 @@ bin/fail_crash$(EXE_EXT): tests/test_workloads/fail_crash.c
 	$(CC) $(CFLAGS) $< -o $@
 
 bin/output_flood$(EXE_EXT): tests/test_workloads/output_flood.c
+	$(CC) $(CFLAGS) $< -o $@
+
+bin/orphan_spawner$(EXE_EXT): tests/test_workloads/orphan_spawner.c
 	$(CC) $(CFLAGS) $< -o $@
 
 workloads: dirs $(WORKLOADS)

@@ -1,6 +1,7 @@
 # Drives the real GUI through the interactions that produced past defects:
-# Enter-to-run, Cancel during a run, and closing the window mid-run.
-# Exits 0 only if every assertion passes.
+# Enter-to-run, resize/reflow, invalid-field messages, export gating during a
+# run, cancelled-benchmark accounting, Cancel during a run, and closing the
+# window mid-run. Exits 0 only if every assertion passes.
 $ErrorActionPreference = 'Stop'
 Add-Type @"
 using System;
@@ -23,6 +24,8 @@ public static class W32i {
     [DllImport("user32.dll")]
     public static extern bool GetWindowRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")]
+    public static extern bool IsWindowEnabled(IntPtr h);
+    [DllImport("user32.dll")]
     public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int Left, Top, Right, Bottom; }
@@ -32,7 +35,8 @@ $WM_SETTEXT = 0x000C; $WM_GETTEXT = 0x000D; $WM_GETTEXTLENGTH = 0x000E
 $WM_CHAR = 0x0102; $WM_CLOSE = 0x0010; $BM_CLICK = 0x00F5
 $SWP_NOMOVE = 0x0002; $SWP_NOZORDER = 0x0004
 $CMD = 1001; $TIMEOUT = 1004; $REPEAT = 1005; $BTN_RUN = 1008
-$BTN_CANCEL = 1009; $STATUS = 1012; $LOG = 1021
+$BTN_CANCEL = 1009; $BTN_CLEAR = 1010; $STATUS = 1012
+$EXPORT_JSON = 1017; $EXPORT_CSV = 1018; $BTN_COPY = 1019; $LOG = 1021
 
 $script:failures = 0
 function Assert([bool]$cond, [string]$name) {
@@ -159,17 +163,46 @@ try {
         Start-Sleep -Milliseconds 300
     }
 
-    # 3b. Valid values still run: timeout 2 s, one repetition.
+    $clear = [W32i]::GetDlgItem($h, $BTN_CLEAR)
+    function Reset-Status {
+        # Clear resets the status label, so the next Wait-Status cannot match a
+        # completion message left over from an earlier step.
+        [void][W32i]::SendMessage($clear, $BM_CLICK, [IntPtr]::Zero, [IntPtr]::Zero)
+    }
+
+    # 3b. Valid values still run: timeout 2 s, two repetitions. A benchmark
+    #     status is intentionally different from the single-run message above,
+    #     which proves the run really happened.
     [void][W32i]::SendMessageStr($timeout, $WM_SETTEXT, [IntPtr]::Zero, '2')
-    [void][W32i]::SendMessageStr($repeat, $WM_SETTEXT, [IntPtr]::Zero, '1')
+    [void][W32i]::SendMessageStr($repeat, $WM_SETTEXT, [IntPtr]::Zero, '2')
     [void][W32i]::SendMessageStr($cmd, $WM_SETTEXT, [IntPtr]::Zero, ($workload + ' 400'))
+    Reset-Status
     [void][W32i]::PostMessage($cmd, $WM_CHAR, [IntPtr]13, [IntPtr]1)
-    $s = Wait-Status $status 'Completed successfully' 10
-    Assert ($s -match 'Completed successfully') ("Valid values still run: " + $s)
+    $s = Wait-Status $status 'Benchmark complete' 10
+    Assert ($s -match 'Benchmark complete \(2 runs\)') ("Valid values run a 2-run benchmark: " + $s)
     [void][W32i]::SendMessageStr($timeout, $WM_SETTEXT, [IntPtr]::Zero, '0')
 
-    # 4. Cancel aborts a long run and reports cancellation.
+    # 4. Export actions must be unavailable mid-run, and cancelling a benchmark
+    #    must not count the run that was interrupted.
+    $exportJson = [W32i]::GetDlgItem($h, $EXPORT_JSON)
+    $exportCsv = [W32i]::GetDlgItem($h, $EXPORT_CSV)
+    $copy = [W32i]::GetDlgItem($h, $BTN_COPY)
+    [void][W32i]::SendMessageStr($repeat, $WM_SETTEXT, [IntPtr]::Zero, '3')
     [void][W32i]::SendMessageStr($cmd, $WM_SETTEXT, [IntPtr]::Zero, ($workload + ' 6000'))
+    Reset-Status
+    [void][W32i]::PostMessage($cmd, $WM_CHAR, [IntPtr]13, [IntPtr]1)
+    $s = Wait-Status $status 'Executing' 5
+    Assert ($s -match 'Executing') 'Long benchmark reaches Executing state'
+    Assert ((-not [W32i]::IsWindowEnabled($exportJson)) -and (-not [W32i]::IsWindowEnabled($exportCsv)) -and (-not [W32i]::IsWindowEnabled($copy))) 'Export actions are disabled while a run is active'
+    [void][W32i]::SendMessage($cancel, $BM_CLICK, [IntPtr]::Zero, [IntPtr]::Zero)
+    $s = Wait-Status $status 'cancelled after 0 of 3' 6
+    Assert ($s -match 'cancelled after 0 of 3') ("Cancelled benchmark counts only completed runs: " + $s)
+    Assert (([W32i]::IsWindowEnabled($exportJson)) -and ([W32i]::IsWindowEnabled($exportCsv)) -and ([W32i]::IsWindowEnabled($copy))) 'Export actions return after the run finishes'
+
+    # 5. Cancel aborts a single long run and reports cancellation.
+    [void][W32i]::SendMessageStr($repeat, $WM_SETTEXT, [IntPtr]::Zero, '1')
+    [void][W32i]::SendMessageStr($cmd, $WM_SETTEXT, [IntPtr]::Zero, ($workload + ' 6000'))
+    Reset-Status
     [void][W32i]::PostMessage($cmd, $WM_CHAR, [IntPtr]13, [IntPtr]1)
     $s = Wait-Status $status 'Executing' 5
     Assert ($s -match 'Executing') 'Long run reaches Executing state'
@@ -177,8 +210,9 @@ try {
     $s = Wait-Status $status 'cancelled' 6
     Assert ($s -match 'cancelled') ("Cancel reports cancellation: " + $s)
 
-    # 5. Closing the window during a run must cancel the worker and exit quickly.
+    # 6. Closing the window during a run must cancel the worker and exit quickly.
     [void][W32i]::SendMessageStr($cmd, $WM_SETTEXT, [IntPtr]::Zero, ($workload + ' 6000'))
+    Reset-Status
     [void][W32i]::PostMessage($cmd, $WM_CHAR, [IntPtr]13, [IntPtr]1)
     $s = Wait-Status $status 'Executing' 5
     Assert ($s -match 'Executing') 'Run reaches Executing before close'

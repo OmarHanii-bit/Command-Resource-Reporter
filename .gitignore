@@ -13,4 +13,5 @@
 
 # Test logs and ad-hoc run output
 tests_out.txt
+results.csv
 *.log
